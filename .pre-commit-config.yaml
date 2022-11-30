@@ -1,0 +1,26 @@
+repos:
+- repo: local
+  hooks:
+  - id:             golint
+    name:           go lint
+    entry:          make go-lint
+    language:       system
+    require_serial: true
+    pass_filenames: false
+    files:          '\.go$'
+
+  - id:             gofmt
+    name:           go fmt
+    entry:          make fmt
+    language:       system
+    require_serial: true
+    pass_filenames: false
+    files:          '\.go$'
+
+  - id:             depscheck
+    name:           go mod tidy
+    entry:          go mod tidy
+    language:       system
+    require_serial: true
+    pass_filenames: false
+    files:          "^go.(mod|sum)$"
