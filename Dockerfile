@@ -16,5 +16,7 @@ FROM alpine:3.17
 # hadolint ignore=DL3018
 RUN apk --no-cache add ca-certificates
 
+RUN apk add nfs-utils
+
 COPY --from=builder /src/csi-driver /csi-driver
 ENTRYPOINT ["/csi-driver"]

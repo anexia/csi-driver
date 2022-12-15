@@ -1,0 +1,9 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: anexia-ent2
+provisioner: csi.anx.io
+parameters:
+  csi.anx.io/ads-class: ENT2
+  csi.anx.io/storage-server-identifier: <storage-server-identifier>

@@ -1,0 +1,260 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-driver-anexia-controller
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/instance: csi.anx.io
+    app.kubernetes.io/part-of: csi-driver-anexia
+    app.kubernetes.io/name: csi-driver-anexia
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: csi.anx.io
+      app.kubernetes.io/part-of: csi-driver-anexia
+      app.kubernetes.io/name: csi-driver-anexia
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: csi.anx.io
+        app.kubernetes.io/part-of: csi-driver-anexia
+        app.kubernetes.io/name: csi-driver-anexia
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: csi-driver-anexia-controller-sa
+      containers:
+        - name: csi-driver-anexia
+          image: anx-cr.io/d41-se-dev-public/csi-driver:2022121504
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--components=controller"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: ANEXIA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: anexia-token
+                  key: token
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 9898
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+              name: plugins-dir
+
+        ### health monitor needs ListVolumes or GetVolume to be implemented and VolumeCondition to be enabled
+        ### not critical, but should be implemented in the future
+        ### https://kubernetes-csi.github.io/docs/external-health-monitor-controller.html
+        #
+        # - name: csi-external-health-monitor-controller
+        #   image: registry.k8s.io/sig-storage/csi-external-health-monitor-controller:v0.7.0
+        #   args:
+        #     - "--v=5"
+        #     - "--csi-address=$(ADDRESS)"
+        #     - "--leader-election"
+        #   env:
+        #     - name: ADDRESS
+        #       value: /csi/csi.sock
+        #   imagePullPolicy: "IfNotPresent"
+        #   volumeMounts:
+        #     - name: socket-dir
+        #       mountPath: /csi
+
+        - name: liveness-probe
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.8.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9898
+
+        - name: csi-provisioner
+          image: registry.k8s.io/sig-storage/csi-provisioner:v3.3.0
+          args:
+            - -v=5
+            - --csi-address=/csi/csi.sock
+            - --extra-create-metadata
+            - --timeout=60s
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+
+        - name: csi-attacher
+          image: registry.k8s.io/sig-storage/csi-attacher:v4.0.0
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-anexia-controller
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+          name: plugins-dir
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-driver-anexia-node
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/instance: csi.anx.io
+    app.kubernetes.io/part-of: csi-driver-anexia
+    app.kubernetes.io/name: csi-driver-anexia
+    app.kubernetes.io/component: node
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: csi.anx.io
+      app.kubernetes.io/part-of: csi-driver-anexia
+      app.kubernetes.io/name: csi-driver-anexia
+      app.kubernetes.io/component: node
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: csi.anx.io
+        app.kubernetes.io/part-of: csi-driver-anexia
+        app.kubernetes.io/name: csi-driver-anexia
+        app.kubernetes.io/component: node
+    spec:
+      hostNetwork: true
+      serviceAccountName: csi-driver-anexia-node-sa
+      containers:
+        - name: csi-driver-anexia
+          image: anx-cr.io/d41-se-dev-public/csi-driver:2022121504
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--nodeid=$(KUBE_NODE_NAME)"
+            - "--components=node"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 9898
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+              name: plugins-dir
+
+        - name: node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.0
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/csi-anexia-node/csi.sock
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /registration
+              name: registration-dir
+
+        - name: liveness-probe
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.8.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9898
+
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-anexia-node
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+          name: plugins-dir
