@@ -24,7 +24,7 @@ func New(logger logr.Logger, components types.Components) (csi.IdentityServer, e
 
 func (is identity) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	return &csi.GetPluginInfoResponse{
-		Name:          "csi.dynamic-storage.anexia.com",
+		Name:          "csi.anx.io",
 		VendorVersion: version.Version,
 	}, nil
 }
