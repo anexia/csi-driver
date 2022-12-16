@@ -13,8 +13,17 @@ import (
 )
 
 func TestDriver(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	config := sanity.NewTestConfig()
 	config.Address = "unix:///tmp/anexia-csi-driver.sock"
+	config.TestVolumeParameters = map[string]string{
+		"csi.anx.io/ads-class": "ENT2",
+		// todo: read from env
+		"csi.anx.io/storage-server-identifier": "2014322f13e54dfb82c491b961df12c7", // csi-test
+	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
