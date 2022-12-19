@@ -42,7 +42,9 @@ jobs:
           filter_mode: file
 
   tests:
-    runs-on: ubuntu-latest
+    runs-on:
+    - self-hosted
+    - linux
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
