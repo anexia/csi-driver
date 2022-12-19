@@ -56,6 +56,8 @@ func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 		opts = append(opts, "ro")
 	}
 
+	opts = append(opts, "nfsvers=4")
+
 	notMount, err := ns.mounter.IsLikelyNotMountPoint(req.GetTargetPath())
 	if err != nil {
 		if os.IsNotExist(err) {
