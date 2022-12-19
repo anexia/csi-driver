@@ -55,6 +55,9 @@ jobs:
          go-version: '1.19'
 
       - name: run unit tests
+        env:
+          ANEXIA_TOKEN:                     ${{ secrets.ANEXIA_TOKEN }}
+          ANEXIA_STORAGE_SERVER_IDENTIFIER: ${{ secrets.ANEXIA_STORAGE_SERVER_IDENTIFIER }}
         run: make test
 
   docker-build:
