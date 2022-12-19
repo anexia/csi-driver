@@ -58,7 +58,7 @@ jobs:
         env:
           ANEXIA_TOKEN:                     ${{ secrets.ANEXIA_TOKEN }}
           ANEXIA_STORAGE_SERVER_IDENTIFIER: ${{ secrets.ANEXIA_STORAGE_SERVER_IDENTIFIER }}
-        run: make test
+        run: sudo -E make test
 
   docker-build:
     runs-on: ubuntu-latest
