@@ -8,10 +8,10 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kubernetes-csi/csi-test/v5 v5.0.0
-	github.com/onsi/ginkgo/v2 v2.5.1
+	github.com/onsi/ginkgo/v2 v2.7.0
 	github.com/onsi/gomega v1.24.1
 	go.anx.io/go-anxcloud v0.5.0
-	golang.org/x/net v0.2.0
+	golang.org/x/net v0.3.0
 	google.golang.org/grpc v1.51.0
 	k8s.io/klog/v2 v2.80.1
 	k8s.io/mount-utils v0.26.0
