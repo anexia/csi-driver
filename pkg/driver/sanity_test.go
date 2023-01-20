@@ -24,6 +24,7 @@ func TestDriver(t *testing.T) {
 		// todo: read from env
 		"csi.anx.io/storage-server-identifier": "2014322f13e54dfb82c491b961df12c7", // csi-test
 	}
+	config.TestVolumeSize = 1024 * 1024 * 1024 // 1 GiB
 
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
