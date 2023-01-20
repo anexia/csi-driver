@@ -9,6 +9,7 @@ import (
 func (v *Volume) FilterAPIRequestBody(ctx context.Context) (interface{}, error) {
 	return requestBody(ctx, func() interface{} {
 		return &struct {
+			commonRequestBody
 			Volume
 			StorageServerInterfaces *string `json:"storage_server_interfaces,omitempty"`
 			Prefixes                *string `json:"prefixes,omitempty"`

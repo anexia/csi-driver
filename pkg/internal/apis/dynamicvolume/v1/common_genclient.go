@@ -40,6 +40,10 @@ func endpointURL(ctx context.Context, o types.Object, apiPath string) (*url.URL,
 	return u, nil
 }
 
+type commonRequestBody struct {
+	State string `json:"state,omitempty"`
+}
+
 func requestBody(ctx context.Context, br func() interface{}) (interface{}, error) {
 	op, err := types.OperationFromContext(ctx)
 	if err != nil {
