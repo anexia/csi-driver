@@ -10,7 +10,7 @@ require (
 	github.com/kubernetes-csi/csi-test/v5 v5.0.0
 	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.27.0
-	go.anx.io/go-anxcloud v0.5.0
+	go.anx.io/go-anxcloud v0.5.1
 	golang.org/x/net v0.7.0
 	google.golang.org/grpc v1.53.0
 	k8s.io/klog/v2 v2.90.0
