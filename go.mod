@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kubernetes-csi/csi-test/v5 v5.0.0
 	github.com/onsi/ginkgo/v2 v2.8.4
-	github.com/onsi/gomega v1.27.1
+	github.com/onsi/gomega v1.27.2
 	go.anx.io/go-anxcloud v0.5.1
 	golang.org/x/net v0.7.0
 	google.golang.org/grpc v1.53.0
