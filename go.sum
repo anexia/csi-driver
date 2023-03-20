@@ -255,7 +255,7 @@ honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWh
 k8s.io/klog/v2 v2.70.1/go.mod h1:y1WjHnz7Dj687irZUWR/WLkLc5N1YHtjLdmgWjndZn0=
 k8s.io/klog/v2 v2.90.1 h1:m4bYOKall2MmOiRaR1J+We67Do7vm9KiQVlT96lnHUw=
 k8s.io/klog/v2 v2.90.1/go.mod h1:y1WjHnz7Dj687irZUWR/WLkLc5N1YHtjLdmgWjndZn0=
-k8s.io/mount-utils v0.26.2 h1:KoRKqCAAK2l37l71YMvKx6vaLToh52RkNx1RU/dSLGQ=
-k8s.io/mount-utils v0.26.2/go.mod h1:95yx9K6N37y8YZ0/lUh9U6ITosMODNaW0/v4wvaa0Xw=
+k8s.io/mount-utils v0.26.3 h1:FxMDiPLCkrYgonfSaKHWltLNkyTg3Q/Xrwn94uwhd8k=
+k8s.io/mount-utils v0.26.3/go.mod h1:95yx9K6N37y8YZ0/lUh9U6ITosMODNaW0/v4wvaa0Xw=
 k8s.io/utils v0.0.0-20221107191617-1a15be271d1d h1:0Smp/HP1OH4Rvhe+4B8nWGERtlqAGSftbSbbmm45oFs=
 k8s.io/utils v0.0.0-20221107191617-1a15be271d1d/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
