@@ -10,6 +10,13 @@ test: hack
 	    ./pkg/...
 	go tool cover -html=coverage.out -o coverage.html
 
+test-sanity: hack
+	hack/ginkgo run -p              \
+	    -timeout 0                  \
+	    -race                       \
+	    --keep-going                \
+	    ./tests/sanity/...
+
 hack:
 	cd hack && go build -o . github.com/golangci/golangci-lint/cmd/golangci-lint
 	cd hack && go build -o . github.com/onsi/ginkgo/v2/ginkgo
@@ -27,4 +34,4 @@ go-lint: hack
 	@echo "==> Checking source code against linters..."
 	@hack/golangci-lint run --timeout 5m ./...
 
-.PHONY: csi-driver test hack go-lint depscheck fmt
+.PHONY: csi-driver test test-sanity hack go-lint depscheck fmt
