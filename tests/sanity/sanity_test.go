@@ -30,7 +30,12 @@ func TestDriver(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	nodeID, _ := os.Hostname()
+	nodeID, err := os.Hostname()
+	if err != nil {
+		t.Error(fmt.Errorf("error retrieving hostname as node ID: %w", err))
+	}
+
+	t.Logf("Node ID initialized from hostname: %q", nodeID)
 
 	go func() {
 		err := driver.Run(ctx, types.Controller|types.Node, nodeID, config.Address)
