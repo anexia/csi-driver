@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/anexia/csi-driver/pkg/driver"
 	"github.com/anexia/csi-driver/pkg/types"
@@ -37,12 +38,18 @@ func TestDriver(t *testing.T) {
 
 	t.Logf("Node ID initialized from hostname: %q", nodeID)
 
+	starting := make(chan struct{}, 0)
 	go func() {
+		starting <- struct{}{}
+
 		err := driver.Run(ctx, types.Controller|types.Node, nodeID, config.Address)
 		if err != nil && !errors.Is(err, context.Canceled) {
 			panic(fmt.Errorf("driver crashed: %w", err))
 		}
 	}()
+
+	<-starting
+	time.Sleep(10)
 
 	sanity.Test(t, config)
 }
