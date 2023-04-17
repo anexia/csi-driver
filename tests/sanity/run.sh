@@ -1,10 +1,15 @@
+#!/usr/bin/env bash
+
 function cleanup {
-  pkill -f csi-driver
+    if [ -n "$csi_driver_pid" ]; then
+      kill $csi_driver_pid
+    fi
 }
 
 trap cleanup EXIT
 
 ./csi-driver --components combined --endpoint 'unix:///tmp/anexia-csi-driver.sock' --nodeid $(hostname) &> csi-driver.log &
+csi_driver_pid=$!
 
 sed -i "s/<storage-server-identifier>/$ANEXIA_STORAGE_SERVER_IDENTIFIER/g" tests/sanity/volume-parameters.yaml
 
