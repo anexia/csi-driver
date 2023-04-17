@@ -11,7 +11,7 @@ test: hack
 	go tool cover -html=coverage.out -o coverage.html
 
 test-sanity: csi-driver
-	bash tests/sanity/run.sh
+	tests/sanity/run.sh
 
 hack:
 	cd hack && go build -o . github.com/golangci/golangci-lint/cmd/golangci-lint
