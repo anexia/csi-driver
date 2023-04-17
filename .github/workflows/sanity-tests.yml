@@ -1,5 +1,9 @@
 on:
   workflow_dispatch: {}
+  push:
+    tags: 
+    - 'v*'
+  pull_request: {}
 
 name: Sanity Tests
 jobs:
@@ -19,9 +23,14 @@ jobs:
       - name: Set up CI system
         run:  sudo apt-get update && sudo apt-get install -y nfs-common netbase && sudo rpcbind
 
-      - name: run sanity tests
+      - name: Run sanity tests
         env:
           ANEXIA_TOKEN:                     ${{ secrets.ANEXIA_TOKEN }}
           ANEXIA_STORAGE_SERVER_IDENTIFIER: ${{ secrets.ANEXIA_STORAGE_SERVER_IDENTIFIER }}
         run: sudo -E make test-sanity
 
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: csi-driver.log
+          path: csi-driver.log
