@@ -38,6 +38,7 @@ jobs:
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
           name: csi-driver.log
           path: csi-driver.log
