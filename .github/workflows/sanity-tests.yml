@@ -3,7 +3,8 @@ on:
   push:
     tags: 
     - 'v*'
-  pull_request: {}
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 name: Sanity Tests
 jobs:
@@ -11,6 +12,12 @@ jobs:
     runs-on:
     - self-hosted
     - linux
+
+    if: |
+      github.event_name != 'pull_request' || 
+      contains(github.event.pull_request.labels.*.name, 'needs-e2e-sanity-tests') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'needs-e2e-sanity-tests') 
+
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
