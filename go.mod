@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.10.0
 	github.com/onsi/gomega v1.27.8
 	go.anx.io/go-anxcloud v0.5.3
-	golang.org/x/net v0.10.0
+	golang.org/x/net v0.11.0
 	google.golang.org/grpc v1.55.0
 	k8s.io/klog/v2 v2.100.1
 	k8s.io/mount-utils v0.27.2
