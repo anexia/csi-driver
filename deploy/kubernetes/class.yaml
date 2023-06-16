@@ -6,4 +6,4 @@ metadata:
 provisioner: csi.anx.io
 parameters:
   csi.anx.io/ads-class: ENT2
-  csi.anx.io/storage-server-identifier: <storage-server-identifier>
+  csi.anx.io/storage-server-identifier: { "doc": "insert identifier of storage server interface here" }

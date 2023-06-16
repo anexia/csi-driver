@@ -3,19 +3,19 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-driver-anexia-controller-sa
+  name: csi-driver-anexia-controller
   namespace: kube-system
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-driver-anexia-node-sa
+  name: csi-driver-anexia-node
   namespace: kube-system
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-driver-anexia-external-provisioner-role
+  name: csi-driver-anexia-external-provisioner
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -51,12 +51,12 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-driver-anexia-csi-provisioner-binding
+  name: csi-driver-anexia-csi-provisioner
 subjects:
   - kind: ServiceAccount
-    name: csi-driver-anexia-controller-sa
+    name: csi-driver-anexia-controller
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: csi-driver-anexia-external-provisioner-role
+  name: csi-driver-anexia-external-provisioner
   apiGroup: rbac.authorization.k8s.io
