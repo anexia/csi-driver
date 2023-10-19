@@ -3,7 +3,7 @@ module github.com/anexia/csi-driver
 go 1.20
 
 require (
-	github.com/container-storage-interface/spec v1.8.0
+	github.com/container-storage-interface/spec v1.9.0
 	github.com/go-logr/logr v1.2.4
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
