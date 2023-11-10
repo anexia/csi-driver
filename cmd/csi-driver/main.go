@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	"github.com/anexia/csi-driver/pkg/driver"
 	"github.com/anexia/csi-driver/pkg/types"
@@ -25,7 +25,7 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	ctx := logr.NewContext(context.Background(), klogr.New())
+	ctx := logr.NewContext(context.Background(), textlogger.NewLogger(textlogger.NewConfig()))
 
 	err := driver.Run(ctx, components, *nodeID, *endpoint)
 	if err != nil {
