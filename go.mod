@@ -13,7 +13,7 @@ require (
 	golang.org/x/net v0.19.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/klog/v2 v2.110.1
-	k8s.io/mount-utils v0.28.3
+	k8s.io/mount-utils v0.28.4
 )
 
 require (
