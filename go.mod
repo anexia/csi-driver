@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
-	go.anx.io/go-anxcloud v0.6.1
+	go.anx.io/go-anxcloud v0.6.2
 	golang.org/x/net v0.19.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/klog/v2 v2.110.1
