@@ -1,6 +1,8 @@
 module github.com/anexia/csi-driver
 
-go 1.20
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
