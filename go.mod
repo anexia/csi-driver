@@ -14,7 +14,7 @@ require (
 	go.anx.io/go-anxcloud v0.6.2
 	golang.org/x/net v0.20.0
 	google.golang.org/grpc v1.60.1
-	k8s.io/klog/v2 v2.120.0
+	k8s.io/klog/v2 v2.120.1
 	k8s.io/mount-utils v0.29.1
 )
 
