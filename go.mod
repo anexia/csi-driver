@@ -10,7 +10,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/onsi/ginkgo/v2 v2.15.0
-	github.com/onsi/gomega v1.31.0
+	github.com/onsi/gomega v1.31.1
 	go.anx.io/go-anxcloud v0.6.2
 	golang.org/x/net v0.20.0
 	google.golang.org/grpc v1.60.1
