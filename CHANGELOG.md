@@ -23,3 +23,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.0] - 2024-02-05
+
+### Added
+* Initial release
