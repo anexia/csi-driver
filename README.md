@@ -13,12 +13,14 @@ This is a csi-driver for Anexia!
 
 ## Installation
 
-**Note:** if you create a K8s cluster using Anexias Kubernetes Engine (AKE) with a `SCND unrouted unique` IPAM prefix configured and have an ADV enabled Engine account,
-the CSI driver will automatically be deployed and configured with a default `StorageClass` using ENT2 storage called `anexia-ent2`.
+> [!NOTE]
+> If you create a K8s cluster using Anexias Kubernetes Engine (AKE) with a `SCND unrouted unique` IPAM prefix configured and have an ADV enabled Engine account,
+> the CSI driver will automatically be deployed and configured with a default `StorageClass` using ENT2 storage called `anexia-ent2`.
 
 To install the CSI driver and configure a StorageClass in a K8s cluster not managed by Anexia, you can apply the following steps to get it running:
 
-Make sure to set both `$ANEXIA_TOKEN` and `$STORAGE_SERVER_INTERFACE_ID` with the data from the prerequirements.
+> [!IMPORTANT]
+> Make sure to set both `$ANEXIA_TOKEN` and `$STORAGE_SERVER_INTERFACE_ID` with the data from the prerequirements.
 
 ```bash
 # Create secret from Anexia Engine service-account token
@@ -48,7 +50,8 @@ $ kubectl kustomize | kubectl apply
 
 ### StorageClass
 
-Make sure to set the `$STORAGE_SERVER_INTERFACE_ID` environment variable with the ADV Storage Server Interface identifier set as value.
+> [!IMPORTANT]
+> Make sure to set the `$STORAGE_SERVER_INTERFACE_ID` environment variable with the ADV Storage Server Interface identifier set as value.
 
 ```bash
 kubectl apply -f - <<EOF
