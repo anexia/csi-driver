@@ -43,7 +43,7 @@ patches:
 EOT
 
 # Apply the deployment kustomization
-$ kubectl kustomize | kubectl apply
+$ kubectl kustomize | kubectl apply -f -
 ```
 
 ## Configuration
