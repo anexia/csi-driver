@@ -21,6 +21,7 @@ To install the CSI driver and configure a StorageClass in a K8s cluster not mana
 
 > [!IMPORTANT]
 > Make sure to set both `$ANEXIA_TOKEN` and `$STORAGE_SERVER_INTERFACE_ID` with the data from the prerequirements.
+> We recommend to execute the following steps in an empty directory as it creates a new file (`kustomization.yaml`) in the current working directory.
 
 ```bash
 # Create secret from Anexia Engine service-account token
@@ -43,7 +44,7 @@ patches:
 EOT
 
 # Apply the deployment kustomization
-$ kubectl kustomize | kubectl apply -f -
+$ kubectl apply -k .
 ```
 
 ## Configuration
