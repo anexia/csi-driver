@@ -1,6 +1,9 @@
 # csi-driver for Anexia
 
 [![Build Status](https://github.com/anexia/csi-driver/actions/workflows/push.yml/badge.svg?branch=main&event=push)](https://github.com/anexia/csi-driver/actions/workflows/push.yml)
+[![Code Climate](https://codeclimate.com/github/anexia/csi-driver.png)](https://codeclimate.com/github/anexia/csi-driver)
+![Code Climate coverage](https://img.shields.io/codeclimate/coverage/anexia/csi-driver)
+
 
 This is a csi-driver for Anexia!
 
