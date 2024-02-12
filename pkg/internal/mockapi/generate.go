@@ -4,4 +4,4 @@ import (
 	_ "github.com/golang/mock/gomock"
 )
 
-//go:generate mockgen -package mockapi -destination api.go go.anx.io/go-anxcloud/pkg/api/types API
+//go:generate go run github.com/golang/mock/mockgen@v1.6.0 -package mockapi -destination xxgenerated_api.go go.anx.io/go-anxcloud/pkg/api/types API

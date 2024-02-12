@@ -2,8 +2,7 @@
 
 [![Build Status](https://github.com/anexia/csi-driver/actions/workflows/push.yml/badge.svg?branch=main&event=push)](https://github.com/anexia/csi-driver/actions/workflows/push.yml)
 [![Code Climate](https://codeclimate.com/github/anexia/csi-driver.png)](https://codeclimate.com/github/anexia/csi-driver)
-![Code Climate coverage](https://img.shields.io/codeclimate/coverage/anexia/csi-driver)
-
+[![Test Coverage](https://api.codeclimate.com/v1/badges/9f866bbcd866440b1f64/test_coverage)](https://codeclimate.com/github/anexia/csi-driver/test_coverage)
 
 This is a csi-driver for Anexia!
 
