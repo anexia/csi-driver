@@ -5,6 +5,7 @@ test: hack
 	hack/ginkgo run -p              \
 	    -timeout 0                  \
 	    -race                       \
+	    -coverpkg ./...             \
 	    -coverprofile coverage.out  \
 	    --keep-going                \
 	    ./pkg/...
