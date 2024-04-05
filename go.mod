@@ -12,7 +12,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.16.0
 	github.com/onsi/gomega v1.31.1
 	go.anx.io/go-anxcloud v0.6.2
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.24.0
 	google.golang.org/grpc v1.62.1
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/mount-utils v0.29.2
@@ -26,7 +26,7 @@ require (
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
