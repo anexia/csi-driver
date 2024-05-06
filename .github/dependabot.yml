@@ -9,6 +9,15 @@ updates:
     - eiabea
     - anx-mschaefer
 
+  - package-ecosystem: "gomod"
+    directory: "/hack"
+    schedule:
+      interval: "weekly"
+    assignees:
+    - LittleFox94
+    - eiabea
+    - anx-mschaefer
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
