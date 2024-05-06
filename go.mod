@@ -1,8 +1,7 @@
 module github.com/anexia/csi-driver
 
 go 1.21
-
-toolchain go1.21.1
+toolchain go1.22.2
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
@@ -15,7 +14,7 @@ require (
 	golang.org/x/net v0.24.0
 	google.golang.org/grpc v1.63.2
 	k8s.io/klog/v2 v2.120.1
-	k8s.io/mount-utils v0.29.3
+	k8s.io/mount-utils v0.30.0
 )
 
 require (
