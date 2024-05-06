@@ -26,3 +26,12 @@ updates:
     - LittleFox94
     - eiabea
     - anx-mschaefer
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    assignees:
+    - LittleFox94
+    - eiabea
+    - anx-mschaefer
