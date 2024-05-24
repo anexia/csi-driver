@@ -6,12 +6,12 @@ toolchain go1.22.2
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/onsi/ginkgo/v2 v2.17.3
+	github.com/onsi/ginkgo/v2 v2.18.0
 	github.com/onsi/gomega v1.33.1
-	go.anx.io/go-anxcloud v0.6.4
+	go.anx.io/go-anxcloud v0.7.0
 	golang.org/x/net v0.25.0
 	google.golang.org/grpc v1.63.2
 	k8s.io/klog/v2 v2.120.1
@@ -28,7 +28,7 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
-	golang.org/x/tools v0.20.0 // indirect
+	golang.org/x/tools v0.21.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
