@@ -36,12 +36,16 @@ var _ = Describe("Node Service", func() {
 	})
 
 	Context("NodePublishVolume", func() {
-		var validRequest *csi.NodePublishVolumeRequest
+		var (
+			targetPath   string
+			validRequest *csi.NodePublishVolumeRequest
+		)
 
 		BeforeEach(func() {
+			targetPath = GinkgoT().TempDir()
 			validRequest = &csi.NodePublishVolumeRequest{
 				VolumeId:         "foo",
-				TargetPath:       "/tmp/foo",
+				TargetPath:       targetPath,
 				VolumeCapability: &csi.VolumeCapability{},
 				VolumeContext: map[string]string{
 					"mountURL": "mock-server.test:/foo/bar",
@@ -61,7 +65,7 @@ var _ = Describe("Node Service", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mounts).To(HaveLen(1))
 			Expect(mounts[0].Type).To(Equal("nfs"))
-			Expect(mounts[0].Path).To(Equal("/tmp/foo"))
+			Expect(mounts[0].Path).To(Equal(targetPath))
 			Expect(mounts[0].Device).To(Equal("mock-server.test:/foo/bar"))
 			Expect(mounts[0].Opts).ToNot(ContainElement("ro"))
 		})
