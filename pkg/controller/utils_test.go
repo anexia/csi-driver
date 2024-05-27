@@ -180,7 +180,7 @@ var _ = Describe("Controller Service Utils", func() {
 				a.EXPECT().List(gomock.Any(), &dynamicvolumev1.Volume{Name: "mocked-volume-name"}, gomock.Any()).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, opts ...types.ListOption) error {
 					options := types.ListOptions{}
 					for _, opt := range opts {
-						opt.ApplyToList(&options)
+						Expect(opt.ApplyToList(&options)).To(Succeed())
 					}
 
 					Expect(options.ObjectChannel).ToNot(BeNil())
