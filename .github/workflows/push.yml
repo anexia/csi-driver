@@ -72,7 +72,7 @@ jobs:
       # not available (e.g. when PR from a fork or dependabot). Sadly, the
       # secrets context is not available in jobs/steps.if but we copy the
       # HARBOR_USER secret into the environment and check that instead.
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         id: docker_login
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
