@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/golangci/golangci-lint v1.59.0
-	github.com/onsi/ginkgo/v2 v2.17.3
+	github.com/onsi/ginkgo/v2 v2.19.0
 )
 
 require (
