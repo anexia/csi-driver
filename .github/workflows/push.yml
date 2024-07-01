@@ -98,7 +98,7 @@ jobs:
             type=sha
 
       - name: Build Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         id:   docker_build
         with:
           push: ${{ steps.docker_login.outcome == 'success' }}
