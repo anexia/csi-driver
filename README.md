@@ -12,6 +12,8 @@ This is a csi-driver for Anexia!
 2. ADV Storage Server Interface created in a IPAM prefix with role `SCND unrouted unique`
 3. K8s nodes with network access to the Storage Server Interface
 4. Anexia Engine service-account token with full ADV permissions
+5. `rpc-statd` service running on hosts (included in `nfs-common` package)
+    * alternatively add the 'nolock' option to `mountOptions` on `StorageClass` or `PersistentVolume.spec` if global file locking is not needed
 
 ## Installation
 
