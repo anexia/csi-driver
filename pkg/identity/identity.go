@@ -10,6 +10,7 @@ import (
 )
 
 type identity struct {
+	csi.UnimplementedIdentityServer
 	logger     logr.Logger
 	components types.Components
 }
