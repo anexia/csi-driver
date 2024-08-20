@@ -80,7 +80,7 @@ func checkValidateVolumeCapabilitiesRequest(req *csi.ValidateVolumeCapabilitiesR
 		return ErrVolumeIDNotProvided
 	}
 
-	if req.VolumeCapabilities == nil || len(req.VolumeCapabilities) == 0 {
+	if len(req.VolumeCapabilities) == 0 {
 		return ErrVolumeCapabilitiesNotProvided
 	}
 
