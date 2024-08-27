@@ -6,7 +6,7 @@ toolchain go1.22.5
 
 require (
 	github.com/golangci/golangci-lint v1.60.3
-	github.com/onsi/ginkgo/v2 v2.20.0
+	github.com/onsi/ginkgo/v2 v2.20.1
 )
 
 require (
