@@ -229,6 +229,7 @@ var _ = Describe("Controller Service Utils", func() {
 		It("can successfully resolve a server with valid `csi.anx.io/storage-server-identifier` set", func() {
 			a.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: "foobar"}).DoAndReturn(func(_ any, s *dynamicvolumev1.StorageServerInterface, _ ...any) error {
 				s.Name = "test-name"
+				s.IPAddress.Name = "127.0.0.1"
 				return nil
 			})
 
@@ -255,6 +256,21 @@ var _ = Describe("Controller Service Utils", func() {
 
 			Expect(err).To(MatchError(api.ErrNotFound))
 			Expect(storageServer).To(BeNil())
+		})
+
+		It("returns an error when IP addresses are empty", func() {
+			a.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: "foobar"}).DoAndReturn(func(_ any, s *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				s.Name = "test-name"
+				return nil
+			})
+
+			_, err := getDynamicStorageServer(context.TODO(), a, &csi.CreateVolumeRequest{
+				Parameters: map[string]string{
+					"csi.anx.io/storage-server-identifier": "foobar",
+				},
+			})
+
+			Expect(err).To(MatchError(ErrQueryingIPAddressesFailed))
 		})
 	})
 
