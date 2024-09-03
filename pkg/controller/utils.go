@@ -178,6 +178,10 @@ func getDynamicStorageServer(ctx context.Context, engine types.API, req *csi.Cre
 		return nil, err
 	}
 
+	if storageServer.IPAddress.Name == "" {
+		return nil, ErrQueryingIPAddressesFailed
+	}
+
 	return &storageServer, nil
 }
 

@@ -19,4 +19,9 @@ var (
 
 	// ErrVolumeWithSameNameButDifferentSizeAlreadyExists is returned if a volume with the same name but different size already exists
 	ErrVolumeWithSameNameButDifferentSizeAlreadyExists = errors.New("volume with the same name, but different size already exists")
+
+	// ErrQueryingIPAddressesFailed is returned whenever we actually receive a
+	// storage server interface from the Engine, but that has no IP addresses. This is
+	// almost always due to missing IPAM permissions.
+	ErrQueryingIPAddressesFailed = errors.New("engine returned no IP addresses for storage server interface, likely due to missing permissions on the token")
 )
