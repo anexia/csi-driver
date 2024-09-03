@@ -2,13 +2,14 @@ csi-driver:
 	go build ./cmd/csi-driver
 
 test: hack
-	hack/ginkgo run -p              \
-	    -timeout 0                  \
-	    -race                       \
-	    -coverpkg ./...             \
-	    -coverprofile coverage.out  \
-	    --keep-going                \
-	    ./pkg/...
+	go run github.com/onsi/ginkgo/v2/ginkgo \
+		-p                                  \
+		-timeout 0                          \
+		-race                               \
+		-coverpkg ./...                     \
+		-coverprofile coverage.out          \
+		--keep-going                        \
+		./pkg/...
 	go tool cover -html=coverage.out -o coverage.html
 
 test-sanity: csi-driver
@@ -16,7 +17,6 @@ test-sanity: csi-driver
 
 hack:
 	cd hack && go build -o . github.com/golangci/golangci-lint/cmd/golangci-lint
-	cd hack && go build -o . github.com/onsi/ginkgo/v2/ginkgo
 
 depscheck:
 	@hack/godepscheck.sh
