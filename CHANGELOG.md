@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.2] - 2024-02-05
+
 ### Fixed
 
 * Ensure that IP address is set when querying the storage server interface (#223, @nachtjasmin)
