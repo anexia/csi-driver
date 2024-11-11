@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.34.2
-	go.anx.io/go-anxcloud v0.7.5
+	go.anx.io/go-anxcloud v0.7.6
 	golang.org/x/net v0.30.0
 	google.golang.org/grpc v1.67.1
 	k8s.io/klog/v2 v2.130.1
