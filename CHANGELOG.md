@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.3] - 2025-02-14
+
 ### Fixed
 
 Our valentine's gift to you! A little update of all the dependencies. (#264, @nachtjasmin)
