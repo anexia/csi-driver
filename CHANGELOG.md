@@ -23,6 +23,10 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+### Fixed
+
+Our valentine's gift to you! A little update of all the dependencies. (#264, @nachtjasmin)
+
 ## [0.1.2] - 2024-02-05
 
 ### Fixed

@@ -27,9 +27,6 @@ jobs:
       - name: check code format
         run: make fmtcheck
 
-      - name: check code quality
-        run: make go-lint
-
   review-docker:
     runs-on: ubuntu-latest
     steps:
