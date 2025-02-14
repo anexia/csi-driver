@@ -7,13 +7,6 @@ updates:
     reviewers:
       - 'anexia/system-engineering'
 
-  - package-ecosystem: "gomod"
-    directory: "/hack"
-    schedule:
-      interval: "weekly"
-    reviewers:
-      - 'anexia/system-engineering'
-
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

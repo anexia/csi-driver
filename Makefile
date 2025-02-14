@@ -15,9 +15,6 @@ test: hack
 test-sanity: csi-driver
 	tests/sanity/run.sh
 
-hack:
-	cd hack && go build -o . github.com/golangci/golangci-lint/cmd/golangci-lint
-
 depscheck:
 	@hack/godepscheck.sh
 
@@ -27,8 +24,4 @@ fmt:
 fmtcheck:
 	@hack/gofmtcheck.sh
 
-go-lint: hack
-	@echo "==> Checking source code against linters..."
-	@hack/golangci-lint run --timeout 5m ./...
-
-.PHONY: csi-driver test test-sanity hack go-lint depscheck fmt
+.PHONY: csi-driver test test-sanity depscheck fmt
