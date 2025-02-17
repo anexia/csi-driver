@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 RUN go build -ldflags "-s -w -X github.com/anexia/csi-driver/pkg/version.Version=$version" ./cmd/csi-driver
 
-FROM alpine:3.21.2
+FROM alpine:3.21.3
 
 # Hadolint wants us to pin apk packages to specific versions, mostly to make sure sudden incompatible changes
 # don't get released - for ca-certificates this only gives us the downside of randomly failing docker builds
