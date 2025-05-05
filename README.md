@@ -88,4 +88,8 @@ spec:
 EOF
 ```
 
+### Storage expansion
+
+We currently do not support the `allowVolumeExpansion` field.
+
 Consult the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/support-fsgroup.html) for further information.
