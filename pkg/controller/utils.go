@@ -101,6 +101,12 @@ func sizeFromCapacityRange(capacityRange *csi.CapacityRange) int64 {
 		size = capacityRange.GetLimitBytes()
 	}
 
+	// If we exceed the maximum, limit it to that.
+	if size > maxVolumeSize {
+		klog.V(0).Infof("The size request of %d bytes exceeds the maximum value (%d). Falling back to the maximum value.", size, maxVolumeSize)
+		size = maxVolumeSize
+	}
+
 	return size
 }
 

@@ -1,5 +1,5 @@
-# adapted from https://github.com/kubernetes-csi/csi-driver-nfs/blob/master/deploy/rbac-csi-nfs.yaml
 ---
+# adapted from https://github.com/kubernetes-csi/csi-driver-nfs/blob/master/deploy/rbac-csi-nfs.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -47,6 +47,13 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get"]
+  # required for resizing
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

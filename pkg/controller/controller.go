@@ -14,8 +14,14 @@ import (
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
 )
 
-// default size for volumes without a capacity range specified = 10 GiB
-const defaultVolumeSize int64 = 10737418240
+// For a discussion regarding those limits, see also SO-14229.
+const (
+	oneMebibyteInBytes int64 = 1 << (2 * 10)             // = 1 MiB
+	oneGibibyteInBytes int64 = oneMebibyteInBytes * 1024 // = 1 GiB
+
+	defaultVolumeSize int64 = 10 * oneGibibyteInBytes   // Default size for volumes without a capacity range specified = 10 GiB
+	maxVolumeSize     int64 = 1024 * oneGibibyteInBytes // Maximum volume size (= 1TiB)
+)
 
 type controller struct {
 	csi.UnimplementedControllerServer
@@ -108,6 +114,15 @@ func (cs *controller) ControllerGetCapabilities(ctx context.Context, req *csi.Co
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
 						Type: csi.ControllerServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER,
+					},
+				},
+			},
+
+			// Support for volume expansion API: https://kubernetes-csi.github.io/docs/volume-expansion.html
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 					},
 				},
 			},
