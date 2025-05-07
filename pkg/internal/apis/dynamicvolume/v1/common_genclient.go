@@ -3,7 +3,6 @@ package v1
 import (
 	"net/url"
 
-	"go.anx.io/go-anxcloud/pkg/api"
 	"go.anx.io/go-anxcloud/pkg/api/types"
 	"go.anx.io/go-anxcloud/pkg/utils/object/filter"
 	"golang.org/x/net/context"
@@ -13,10 +12,6 @@ func endpointURL(ctx context.Context, o types.Object, apiPath string) (*url.URL,
 	op, err := types.OperationFromContext(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if op == types.OperationUpdate {
-		return nil, api.ErrOperationNotSupported
 	}
 
 	// we can ignore the error since the URL is hard-coded known as valid

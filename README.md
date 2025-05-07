@@ -70,6 +70,7 @@ provisioner: csi.anx.io
 parameters:
   csi.anx.io/ads-class: ENT2
   csi.anx.io/storage-server-identifier: $STORAGE_SERVER_INTERFACE_ID
+allowVolumeExpansion: true
 EOF
 ```
 
@@ -87,9 +88,5 @@ spec:
   fsGroupPolicy: File
 EOF
 ```
-
-### Storage expansion
-
-For now, we do not support the `allowVolumeExpansion` field. If you want to expand the volumes, you can do so using the Anexia Engine by editing a volume.
 
 Consult the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/support-fsgroup.html) for further information.

@@ -101,6 +101,11 @@ func sizeFromCapacityRange(capacityRange *csi.CapacityRange) int64 {
 		size = capacityRange.GetLimitBytes()
 	}
 
+	// If we exceed the maximum, limit it to that.
+	if size > maxVolumeSize {
+		size = maxVolumeSize
+	}
+
 	return size
 }
 
