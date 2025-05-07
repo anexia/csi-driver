@@ -26,6 +26,16 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 Smaller style changes.
 
+### Added
+
+* Add support for volume expansion. (#291, @nachtjasmin)
+
+  StorageClasses now support the `allowVolumeExpansion: true` parameter, allowing for an *online*
+  resizing of existing PersistentVolumeClaims.
+
+  Right now, the csi-resize container is just added as a sidecar to the existing controller.
+  We plan to extract this into a separate deployment in the near future.
+
 ## [0.1.5] -- 2025-05-14
 
 ### Fixed

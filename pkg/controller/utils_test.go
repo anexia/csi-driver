@@ -296,6 +296,7 @@ var _ = Describe("Controller Service Utils", func() {
 			Entry("required bytes set", &csi.CapacityRange{RequiredBytes: 20}, int64(20)),
 			// probably shouldn't ever happen...
 			Entry("required bytes greater than limit", &csi.CapacityRange{RequiredBytes: 20, LimitBytes: 10}, int64(10)),
+			Entry("max capacity exceeded", &csi.CapacityRange{RequiredBytes: maxVolumeSize + 1}, maxVolumeSize),
 		)
 	})
 })
