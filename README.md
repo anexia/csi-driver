@@ -90,6 +90,6 @@ EOF
 
 ### Storage expansion
 
-We currently do not support the `allowVolumeExpansion` field.
+For now, we do not support the `allowVolumeExpansion` field. If you want to expand the volumes, you can do so using the Anexia Engine by editing a volume.
 
 Consult the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/support-fsgroup.html) for further information.
