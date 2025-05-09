@@ -23,6 +23,10 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+### Added
+
+* Add detailed logs for the whole CSI workflow to assist in debugging. (#286, @nachtjasmin)
+
 ## [0.1.3] - 2025-02-14
 
 ### Fixed
