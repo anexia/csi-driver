@@ -38,20 +38,28 @@ func New(logger logr.Logger) (csi.ControllerServer, error) {
 }
 
 func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	l := cs.logger.V(2).WithValues("name", req.GetName())
+	l.Info("Creating new volume")
 	if err := checkCreateVolumeRequest(req); err != nil {
+		l.Error(err, "Volume request validation failed")
 		return nil, status.Errorf(codes.InvalidArgument, "request check failed: %s", err)
 	}
 
+	l.Info("Querying storage server interface from Anexia Engine")
 	storageServer, err := getDynamicStorageServer(ctx, cs.engine, req)
 	if err != nil {
+		l.Error(err, "Failed to query storage server interface")
 		return nil, engineErrorToGRPC(err)
 	}
 
+	l.Info("Creating new volume")
 	volume, err := createAnexiaDynamicVolumeFromRequest(ctx, cs.engine, req)
 	if err != nil {
+		l.Error(err, "Volume creation failed")
 		return nil, engineErrorToGRPC(err)
 	}
 
+	l.Info("Volume successfully created", "id", volume.Identifier)
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volume.Identifier,
@@ -66,14 +74,21 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 }
 
 func (cs *controller) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	l := cs.logger.V(2).WithValues("id", req.GetVolumeId())
+	l.Info("Deleting volume")
+
 	if err := checkDeleteVolumeRequest(req); err != nil {
+		l.Error(err, "Volume request invalid")
 		return nil, status.Errorf(codes.InvalidArgument, "request check failed: %s", err)
 	}
 
+	l.Info("Deleting volume in Anexia Engine")
 	if err := cs.engine.Destroy(ctx, &dynamicvolumev1.Volume{Identifier: req.VolumeId}); api.IgnoreNotFound(err) != nil {
+		l.Error(err, "Volume deletion failed")
 		return nil, engineErrorToGRPC(err)
 	}
 
+	l.Info("Volume successfully deleted")
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
