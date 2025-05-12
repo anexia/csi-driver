@@ -1,8 +1,6 @@
 module github.com/anexia/csi-driver
 
-go 1.23.0
-
-toolchain go1.23.6
+go 1.24.0
 
 require (
 	github.com/container-storage-interface/spec v1.11.0
@@ -15,7 +13,7 @@ require (
 	golang.org/x/net v0.40.0
 	google.golang.org/grpc v1.72.0
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/mount-utils v0.32.2
+	k8s.io/mount-utils v0.33.0
 )
 
 require (
@@ -25,9 +23,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
-	github.com/moby/sys/userns v0.1.0 // indirect
-	github.com/rogpeppe/go-internal v1.13.1 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
