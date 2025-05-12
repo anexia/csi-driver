@@ -114,7 +114,7 @@ var _ = Describe("Node Service", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			DeferCleanup(func() {
-				os.RemoveAll(targetPath)
+				_ = os.RemoveAll(targetPath)
 			})
 
 			validRequest = &csi.NodeUnpublishVolumeRequest{

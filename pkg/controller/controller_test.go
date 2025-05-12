@@ -80,7 +80,7 @@ var _ = Describe("Controller Service", func() {
 
 			// AwaitCompletion
 			engine.EXPECT().Get(gomock.Any(), &createdVolume).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, _ ...any) error {
-				v.HasState.State.Type = gs.StateTypeOK
+				v.State.Type = gs.StateTypeOK
 				return nil
 			})
 
