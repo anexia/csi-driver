@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.4] -- 2025-05-12
+
 ### Added
 
 * Add detailed logs for the whole CSI workflow to assist in debugging. (#286, @nachtjasmin)
