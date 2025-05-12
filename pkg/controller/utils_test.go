@@ -138,7 +138,7 @@ var _ = Describe("Controller Service Utils", func() {
 
 			// AwaitCompletion
 			a.EXPECT().Get(gomock.Any(), &expectedVolumeAfterCreate).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, _ ...any) error {
-				v.HasState.State.Type = gs.StateTypeOK
+				v.State.Type = gs.StateTypeOK
 				return nil
 			})
 
@@ -213,7 +213,7 @@ var _ = Describe("Controller Service Utils", func() {
 				// AwaitCompletion of original
 				a.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, _ ...any) error {
 					Expect(v.Identifier).To(Equal("original"))
-					v.HasState.State.Type = gs.StateTypeOK
+					v.State.Type = gs.StateTypeOK
 					return nil
 				})
 
