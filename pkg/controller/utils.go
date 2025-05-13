@@ -14,6 +14,7 @@ import (
 	"go.anx.io/go-anxcloud/pkg/apis/common/gs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 func engineErrorToGRPC(err error) error {
@@ -110,10 +111,12 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 		StorageServerInterfaces: &[]dynamicvolumev1.StorageServerInterface{{Identifier: req.Parameters["csi.anx.io/storage-server-identifier"]}},
 		ADSClass:                req.Parameters["csi.anx.io/ads-class"],
 	}
+	klog.V(4).InfoS("Creating new ADV volume", "volume", volume)
 
 	if err := engine.Create(ctx, &volume); err != nil {
 		httpError := api.HTTPError{}
 		if errors.As(err, &httpError) && httpError.StatusCode() == http.StatusUnprocessableEntity {
+			klog.V(4).InfoS("Volume already exists at engine", "name", req.GetName())
 			// if we land here, probably there exists another volume with the same name
 			return handleIdempotency(ctx, engine, req)
 		}
@@ -121,6 +124,7 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 		return nil, fmt.Errorf("create volume: %w", err)
 	}
 
+	klog.V(4).InfoS("ADV volume created, awaiting completion", "engine_identifier", volume.Identifier)
 	if err := gs.AwaitCompletion(ctx, engine, &volume); err != nil {
 		return nil, fmt.Errorf("failed awaiting completion: %w", err)
 	}
@@ -129,6 +133,7 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 }
 
 func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest) (*dynamicvolumev1.Volume, error) {
+	klog.V(2).InfoS("Searching for existing volume with same name", "name", req.GetName())
 	original, err := findVolumeByName(ctx, engine, req.GetName())
 	if err != nil {
 		// chosen codes.Internal over NotFound
@@ -136,11 +141,15 @@ func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVol
 		return nil, status.Errorf(codes.Internal, "failed finding original: %s", err)
 	}
 
+	klog.V(4).InfoS("Existing volume found, comparing values", "name", req.GetName(), "engine_identifier", original.Identifier)
 	if original.Size != sizeFromCapacityRange(req.GetCapacityRange()) {
+		klog.V(4).Info("A volume with the same name, but a different capacity range already exists at the Anexia Engine")
 		return nil, status.Error(codes.AlreadyExists, "volume with same name already exists")
 	}
 
+	klog.V(4).InfoS("Waiting for volume to transition into completion")
 	if err := gs.AwaitCompletion(ctx, engine, original); err != nil {
+		klog.V(2).ErrorS(err, "Volume did not transition into completion")
 		return nil, fmt.Errorf("failed awaiting completion: %w", err)
 	}
 

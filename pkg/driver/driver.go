@@ -9,7 +9,6 @@ import (
 	"github.com/anexia/csi-driver/pkg/node"
 	"github.com/anexia/csi-driver/pkg/server"
 	"github.com/anexia/csi-driver/pkg/types"
-	"github.com/go-logr/logr"
 )
 
 // Run initializes the csi-driver instance with the given configuration and
@@ -20,22 +19,19 @@ func Run(ctx context.Context, components types.Components, nodeID, endpoint stri
 		NodeID:   nodeID,
 	}
 
-	componentLogger := logr.FromContextOrDiscard(ctx).WithName("component")
-
 	var err error
-
-	if opts.Identity, err = identity.New(componentLogger.WithName("identity"), components); err != nil {
+	if opts.Identity, err = identity.New(components); err != nil {
 		return fmt.Errorf("error initializing identity server: %w", err)
 	}
 
 	if components.Has(types.Controller) {
-		if opts.Controller, err = controller.New(componentLogger.WithName("controller")); err != nil {
+		if opts.Controller, err = controller.New(); err != nil {
 			return fmt.Errorf("error initializing controller server: %w", err)
 		}
 	}
 
 	if components.Has(types.Node) {
-		if opts.Node, err = node.New(componentLogger.WithName("node"), nodeID); err != nil {
+		if opts.Node, err = node.New(nodeID); err != nil {
 			return fmt.Errorf("error initializing node server: %w", err)
 		}
 	}
