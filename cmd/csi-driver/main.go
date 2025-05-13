@@ -3,11 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
 
-	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
-	"k8s.io/klog/v2/textlogger"
 
 	"github.com/anexia/csi-driver/pkg/driver"
 	"github.com/anexia/csi-driver/pkg/types"
@@ -22,14 +19,15 @@ func main() {
 		nodeID   = flag.String("nodeid", "", "node ID")
 	)
 
-	klog.InitFlags(nil)
-	flag.Parse()
+	klog.InitFlags(nil)                               // Setup klog using the default flagset.
+	flag.Parse()                                      // Parse remaining flags (aka ours)
+	defer klog.FlushAndExit(klog.ExitFlushTimeout, 0) // Flush the logs on exit.
 
-	ctx := logr.NewContext(context.Background(), textlogger.NewLogger(textlogger.NewConfig()))
+	// Pass the default, now initialized klog logger, via the context.
+	ctx := klog.NewContext(context.Background(), klog.Background())
 
 	err := driver.Run(ctx, components, *nodeID, *endpoint)
 	if err != nil {
 		klog.Error(err)
-		os.Exit(-1)
 	}
 }

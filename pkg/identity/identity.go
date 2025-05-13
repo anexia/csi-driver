@@ -6,19 +6,16 @@ import (
 	"github.com/anexia/csi-driver/pkg/types"
 	"github.com/anexia/csi-driver/pkg/version"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/go-logr/logr"
 )
 
 type identity struct {
 	csi.UnimplementedIdentityServer
-	logger     logr.Logger
 	components types.Components
 }
 
 // New creates a fresh instance of the Identitiy component, ready to register to a GRPC server.
-func New(logger logr.Logger, components types.Components) (csi.IdentityServer, error) {
+func New(components types.Components) (csi.IdentityServer, error) {
 	return identity{
-		logger:     logger,
 		components: components,
 	}, nil
 }

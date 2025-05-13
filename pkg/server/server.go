@@ -8,8 +8,8 @@ import (
 
 	"github.com/anexia/csi-driver/pkg/version"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 type server struct {
@@ -22,6 +22,7 @@ type server struct {
 // New creates a new Server instance, checking some parts of the configuration
 // and registering the components.
 func New(opts Options) (Server, error) {
+	klog.V(4).InfoS("Starting new server with options", "options", opts)
 	protocol, endpoint, err := parseEndpoint(opts.Endpoint)
 	if err != nil {
 		return nil, err
@@ -65,9 +66,8 @@ func New(opts Options) (Server, error) {
 //
 // Call this method in a goroutine.
 func (s *server) Run(ctx context.Context) error {
-	log := logr.FromContextOrDiscard(ctx).WithName("server")
-	log.V(3).Info(
-		"starting server",
+	klog.V(2).InfoS(
+		"Starting server",
 		"version", version.Version,
 		"node-id", s.nodeID,
 	)
