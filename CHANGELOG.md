@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.5] -- 2025-05-14
+
 ### Fixed
 
 * Use klog library to fix the logs introduced in #286. (#290, @nachtjasmin)
