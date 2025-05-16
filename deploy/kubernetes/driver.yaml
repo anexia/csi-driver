@@ -86,6 +86,16 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
+        # TODO: Put this into a separate deployment with a dedicated RBAC role.
+        - name: csi-resizer
+          image: registry.k8s.io/sig-storage/csi-resizer:v1.13.2
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
       volumes:
         - name: socket-dir
           emptyDir: {}
