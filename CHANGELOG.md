@@ -22,6 +22,9 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * (internal) generic client: add hook FilterRequestURLHook (#123, @marioreggiori)
 
 -->
+## [0.1.6] -- 2025-05-22
+
+Smaller style changes.
 
 ## [0.1.5] -- 2025-05-14
 

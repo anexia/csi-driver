@@ -28,7 +28,7 @@ spec:
       serviceAccountName: csi-driver-anexia-controller
       containers:
         - name: csi-driver-anexia
-          image: anx-cr.io/anexia/csi-driver:0.1.5
+          image: anx-cr.io/anexia/csi-driver:0.1.6.5
           args:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -119,7 +119,7 @@ spec:
       serviceAccountName: csi-driver-anexia-node
       containers:
         - name: csi-driver-anexia
-          image: anx-cr.io/anexia/csi-driver:0.1.5
+          image: anx-cr.io/anexia/csi-driver:0.1.6.5
           args:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
