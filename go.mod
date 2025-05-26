@@ -12,7 +12,7 @@ require (
 	github.com/onsi/gomega v1.36.2
 	go.anx.io/go-anxcloud v0.7.8
 	golang.org/x/net v0.40.0
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.72.2
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/mount-utils v0.32.2
 )
