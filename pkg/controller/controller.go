@@ -59,13 +59,29 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		return nil, engineErrorToGRPC(err)
 	}
 
+	mount, err := createMountURL(volume, storageServer)
+	if err != nil {
+		// ADV v2 switched to an asynchronous model under the hood. Therefore it's very
+		// likely that although the engine says that the volume is ready, it's not ready
+		// "ready", if I understood that correctly.
+		//
+		// Since ADV v2 is still in development, this might change. However, instead of
+		// not doing any error checking whatsoever for the values (which already caused
+		// support tickets in the past), we're now failing gracefully.
+		//
+		// The codes.Unavailable code is meant for transient errors. Therefore this
+		// method is called again repeatedly until we can finally build that URL.
+		klog.V(2).ErrorS(err, "Volume likely not ready yet, construction of mount URL not possible")
+		return nil, status.Errorf(codes.Unavailable, "Volume not ready yet, construction of mount URL was not possible")
+	}
+
 	klog.V(4).Info("Volume successfully created", "id", volume.Identifier)
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volume.Identifier,
 			CapacityBytes: volume.Size,
 			VolumeContext: map[string]string{
-				"mountURL": createMountURL(volume, storageServer),
+				"mountURL": mount,
 			},
 		},
 	}

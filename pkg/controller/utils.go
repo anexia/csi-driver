@@ -200,6 +200,21 @@ func getDynamicStorageServer(ctx context.Context, engine types.API, req *csi.Cre
 	return &storageServer, nil
 }
 
-func createMountURL(volume *dynamicvolumev1.Volume, storageServer *dynamicvolumev1.StorageServerInterface) string {
-	return fmt.Sprintf("%s:%s", storageServer.IPAddress.Name, volume.Path)
+// createMountURL builds the NFS mount URL that's going to be used.
+//
+// An error is returned, if the URL cannot be constructed, because one of the required values is empty.
+func createMountURL(volume *dynamicvolumev1.Volume, storageServer *dynamicvolumev1.StorageServerInterface) (string, error) {
+	var (
+		ip   = storageServer.IPAddress.Name
+		path = volume.Path
+	)
+
+	if ip == "" {
+		return "", fmt.Errorf("IP not provided on storage server interface")
+	}
+	if path == "" {
+		return "", fmt.Errorf("volume without a path yet")
+	}
+
+	return fmt.Sprintf("%s:%s", ip, path), nil
 }

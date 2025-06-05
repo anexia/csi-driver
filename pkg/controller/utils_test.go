@@ -279,9 +279,23 @@ var _ = Describe("Controller Service Utils", func() {
 			volume := dynamicvolumev1.Volume{Path: "/foo/bar"}
 			storageServer := dynamicvolumev1.StorageServerInterface{IPAddress: dynamicvolumev1.IPAddress{Name: "1.2.3.4"}}
 
-			mountURL := createMountURL(&volume, &storageServer)
+			mountURL, _ := createMountURL(&volume, &storageServer)
 
 			Expect(mountURL).To(Equal("1.2.3.4:/foo/bar"))
+		})
+		It("returns an error if volume path is missing", func() {
+			volume := dynamicvolumev1.Volume{}
+			storageServer := dynamicvolumev1.StorageServerInterface{IPAddress: dynamicvolumev1.IPAddress{Name: "1.2.3.4"}}
+
+			_, err := createMountURL(&volume, &storageServer)
+			Expect(err).To(HaveOccurred())
+		})
+		It("returns an error if IP is missing", func() {
+			volume := dynamicvolumev1.Volume{Path: "/foo/bar"}
+			storageServer := dynamicvolumev1.StorageServerInterface{IPAddress: dynamicvolumev1.IPAddress{Name: ""}}
+
+			_, err := createMountURL(&volume, &storageServer)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 
