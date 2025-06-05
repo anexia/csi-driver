@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -55,6 +56,16 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 
 	volume, err := createAnexiaDynamicVolumeFromRequest(ctx, cs.engine, req)
 	if err != nil {
+		// The deadline exceeded error is returned by the AwaitCompletion helper.
+		// Instead of writing a very long error message that just ends with "context
+		// deadline exceeded", we return a proper error message that helps to understand
+		// what's going on.
+		//
+		// Especially in the output of "kubectl describe pvc <pvc-name>", this improves the UX a lot.
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, status.Error(codes.Unavailable, "Volume is not ready yet")
+		}
+
 		klog.V(2).ErrorS(err, "Volume creation in Anexia Engine failed")
 		return nil, engineErrorToGRPC(err)
 	}
