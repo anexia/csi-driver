@@ -12,7 +12,7 @@ require (
 	github.com/onsi/gomega v1.36.2
 	go.anx.io/go-anxcloud v0.7.8
 	golang.org/x/net v0.40.0
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.73.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/mount-utils v0.32.2
 )
@@ -20,7 +20,7 @@ require (
 require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -32,8 +32,8 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.30.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
 )
