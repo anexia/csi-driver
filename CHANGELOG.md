@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.8] -- 2025-06-25
+
 ### Fixed
 
 * Add proper error check for volume mount paths (#298, @nachtjasmin)
