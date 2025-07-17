@@ -19,8 +19,8 @@ const (
 	oneMebibyteInBytes int64 = 1 << (2 * 10)             // = 1 MiB
 	oneGibibyteInBytes int64 = oneMebibyteInBytes * 1024 // = 1 GiB
 
-	defaultVolumeSize int64 = 10 * oneGibibyteInBytes   // Default size for volumes without a capacity range specified = 10 GiB
-	maxVolumeSize     int64 = 1024 * oneGibibyteInBytes // Maximum volume size (= 1TiB)
+	defaultVolumeSize int64 = 10 * oneGibibyteInBytes        // Default size for volumes without a capacity range specified = 10 GiB
+	maxVolumeSize     int64 = 10 * 1024 * oneGibibyteInBytes // Maximum volume size (= 10TiB)
 )
 
 type controller struct {
