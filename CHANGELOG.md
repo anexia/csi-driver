@@ -23,6 +23,10 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.1.9] -- 2025-07-17
+
+* Increase storage limit to 10TiB (@nachtjasmin) (@nachtjasmin)
+
 ## [0.1.8] -- 2025-06-25
 
 ### Fixed
