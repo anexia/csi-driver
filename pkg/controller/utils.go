@@ -132,7 +132,20 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 
 	klog.V(4).InfoS("ADV volume created, awaiting completion", "engine_identifier", volume.Identifier)
 	if err := gs.AwaitCompletion(ctx, engine, &volume); err != nil {
-		return nil, fmt.Errorf("failed awaiting completion: %w", err)
+		switch {
+		case errors.Is(err, gs.ErrStateError):
+			klog.V(2).InfoS("ADV volume went into error state, deleting it", "engine_identifier", volume.Identifier)
+			err := engine.Destroy(ctx, &volume)
+			if err != nil {
+				klog.V(2).ErrorS(err, "ADV volume could not be deleted", "engine_identifier", volume.Identifier)
+				return nil, fmt.Errorf("ADV volume deletion failed: %w", err)
+			}
+
+			// We're returning an error here, so that on the next reconciliation loop, the volume is reprovisioned.
+			return nil, status.Errorf(codes.FailedPrecondition, "ADV volume went into error state, reprovisioning it")
+		default:
+			return nil, fmt.Errorf("failed awaiting completion: %w", err)
+		}
 	}
 
 	return &volume, nil
