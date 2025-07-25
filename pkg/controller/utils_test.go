@@ -171,6 +171,25 @@ var _ = Describe("Controller Service Utils", func() {
 			Expect(err).To(MatchError(api.ErrNotFound))
 		})
 
+		It("deletes the current volume if it went into an error state", func() {
+			a.EXPECT().Create(gomock.Any(), &expectedVolumeCreate).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, _ ...any) error {
+				v.Identifier = "mocked-volume-identifier"
+				return nil
+			})
+
+			// AwaitCompletion
+			a.EXPECT().Get(gomock.Any(), &expectedVolumeAfterCreate).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, _ ...any) error {
+				expectedVolumeAfterCreate.State.Type = gs.StateTypeError
+				return nil
+			})
+
+			a.EXPECT().Destroy(gomock.Any(), &expectedVolumeAfterCreate).Times(1)
+
+			_, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+
+			Expect(status.Convert(err).Message()).To(Equal("ADV volume went into error state, reprovisioning it"))
+		})
+
 		Context("idempotency", func() {
 			BeforeEach(func() {
 				// Create succeeds
