@@ -23,6 +23,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+## [0.2.0] -- 2025-07-29
+
 ### Added
 
 * Reprovision failed volumes automatically (#305, @nachtjasmin)
