@@ -114,18 +114,3 @@ jobs:
           severity: 'CRITICAL,HIGH'
           trivyignores: .trivyignore
 
-  upload-results:
-    needs: tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v5
-
-    - uses: actions/download-artifact@v4
-
-    - uses: paambaati/codeclimate-action@v9.0.0
-      env:
-        CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-      with:
-        prefix: github.com/anexia/csi-driver
-        coverageLocations: |
-          ${{ github.workspace }}/unit-coverage/coverage.out:gocov
