@@ -1,9 +1,8 @@
 package v1
 
 import (
+	"context"
 	"net/url"
-
-	"golang.org/x/net/context"
 )
 
 func (s *StorageServerInterface) EndpointURL(ctx context.Context) (*url.URL, error) {
