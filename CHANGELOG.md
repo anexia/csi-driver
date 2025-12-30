@@ -20,6 +20,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * generic client: List resources with a channel (#42, @LittleFox94)
 * core/v1: added helper methods to tag resources (#122, @marioreggiori)
 * (internal) generic client: add hook FilterRequestURLHook (#123, @marioreggiori)
+* remove deprecated x/net/context (#345, @kkostial)
 
 -->
 
