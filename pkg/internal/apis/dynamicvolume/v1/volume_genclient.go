@@ -1,9 +1,8 @@
 package v1
 
 import (
+	"context"
 	"net/url"
-
-	"golang.org/x/net/context"
 )
 
 func (v *Volume) FilterAPIRequestBody(ctx context.Context) (interface{}, error) {
