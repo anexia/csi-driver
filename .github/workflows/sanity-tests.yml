@@ -37,7 +37,7 @@ jobs:
         run: sudo -E make test-sanity
 
       - name: Upload test artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: ${{ always() }}
         with:
           name: csi-driver.log
