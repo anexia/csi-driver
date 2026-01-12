@@ -6,7 +6,7 @@ require (
 	github.com/container-storage-interface/spec v1.11.0
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/onsi/ginkgo/v2 v2.27.3
+	github.com/onsi/ginkgo/v2 v2.27.4
 	github.com/onsi/gomega v1.38.3
 	go.anx.io/go-anxcloud v0.7.8
 	google.golang.org/grpc v1.72.0
