@@ -1,6 +1,6 @@
 module github.com/anexia/csi-driver
 
-go 1.25.1
+go 1.26.0
 
 require (
 	github.com/container-storage-interface/spec v1.11.0
@@ -10,8 +10,8 @@ require (
 	github.com/onsi/gomega v1.39.0
 	go.anx.io/go-anxcloud v0.10.0
 	google.golang.org/grpc v1.72.0
-	k8s.io/klog/v2 v2.130.1
-	k8s.io/mount-utils v0.35.0
+	k8s.io/klog/v2 v2.140.0
+	k8s.io/mount-utils v0.36.1
 )
 
 require (
@@ -31,5 +31,5 @@ require (
 	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
-	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
+	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 // indirect
 )
