@@ -76,6 +76,18 @@ func checkDeleteVolumeRequest(req *csi.DeleteVolumeRequest) error {
 	return nil
 }
 
+func checkControllerExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
+	if req.VolumeId == "" {
+		return ErrVolumeIDNotProvided
+	}
+
+	if req.CapacityRange == nil {
+		return ErrCapacityRangeNotProvided
+	}
+
+	return nil
+}
+
 func checkValidateVolumeCapabilitiesRequest(req *csi.ValidateVolumeCapabilitiesRequest) error {
 	if req.VolumeId == "" {
 		return ErrVolumeIDNotProvided

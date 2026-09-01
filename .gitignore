@@ -1,4 +1,35 @@
+# Build artifacts
 /csi-driver
-/csi-driver.log
+/bin/
+/dist/
+*.test
+
+# Test, coverage, and profiling output
 /coverage.out
 /coverage.html
+*.prof
+*.pprof
+
+# Local Go workspaces
+go.work
+go.work.sum
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Editors and IDEs
+.idea/
+.vscode/
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

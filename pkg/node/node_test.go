@@ -192,12 +192,17 @@ var _ = Describe("Node Service", func() {
 
 	Context("NodePublishVolume", func() {
 		var (
-			targetPath   string
-			validRequest *csi.NodePublishVolumeRequest
+			targetPath          string
+			canonicalTargetPath string
+			validRequest        *csi.NodePublishVolumeRequest
 		)
 
 		BeforeEach(func() {
 			targetPath = GinkgoT().TempDir()
+			var err error
+			canonicalTargetPath, err = filepath.EvalSymlinks(targetPath)
+			Expect(err).ToNot(HaveOccurred())
+
 			validRequest = &csi.NodePublishVolumeRequest{
 				VolumeId:         "foo",
 				TargetPath:       targetPath,
@@ -220,7 +225,7 @@ var _ = Describe("Node Service", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mounts).To(HaveLen(1))
 			Expect(mounts[0].Type).To(Equal("nfs"))
-			Expect(mounts[0].Path).To(Equal(targetPath))
+			Expect(mounts[0].Path).To(Equal(canonicalTargetPath))
 			Expect(mounts[0].Device).To(Equal("mock-server.test:/foo/bar"))
 			Expect(mounts[0].Opts).ToNot(ContainElement("ro"))
 		})
@@ -279,9 +284,9 @@ var _ = Describe("Node Service", func() {
 		})
 
 		It("succeeds with a valid request", func() {
-			n := &node{mounter: mount.NewFakeMounter([]mount.MountPoint{
-				{Device: "foo", Path: targetPath, Type: "nfs"},
-			})}
+			mounter := mount.NewFakeMounter(nil)
+			Expect(mounter.Mount("foo", targetPath, "nfs", nil)).To(Succeed())
+			n := &node{mounter: mounter}
 
 			_, err := n.NodeUnpublishVolume(context.TODO(), validRequest)
 
@@ -297,9 +302,9 @@ var _ = Describe("Node Service", func() {
 		})
 
 		It("returns an Internal error if the unmount operation failed", func() {
-			n := &node{mounter: &failingMounter{mount.NewFakeMounter([]mount.MountPoint{
-				{Device: "foo", Path: targetPath, Type: "nfs"},
-			})}}
+			mounter := mount.NewFakeMounter(nil)
+			Expect(mounter.Mount("foo", targetPath, "nfs", nil)).To(Succeed())
+			n := &node{mounter: &failingMounter{mounter}}
 
 			_, err := n.NodeUnpublishVolume(context.TODO(), validRequest)
 

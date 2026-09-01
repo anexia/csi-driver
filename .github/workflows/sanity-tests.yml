@@ -28,13 +28,16 @@ jobs:
          go-version-file: "go.mod"
 
       - name: Set up CI system
-        run:  sudo apt-get update && sudo apt-get install -y nfs-common netbase && sudo rpcbind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make netbase nfs-common
+          sudo rpcbind
 
       - name: Run sanity tests
         env:
           ANEXIA_TOKEN:                     ${{ secrets.ANEXIA_TOKEN }}
           ANEXIA_STORAGE_SERVER_IDENTIFIER: ${{ secrets.ANEXIA_STORAGE_SERVER_IDENTIFIER }}
-        run: sudo -E make test-sanity
+        run: sudo -E env "PATH=$PATH" make test-sanity
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v7
