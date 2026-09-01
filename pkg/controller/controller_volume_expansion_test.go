@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
 	"github.com/anexia/csi-driver/pkg/internal/mockapi"
@@ -29,8 +30,11 @@ func TestControllerExpandVolume(t *testing.T) {
 		api := mockapi.NewMockAPI(ctrl)
 
 		return testBundle{
-			controller: &controller{engine: api},
-			api:        api,
+			controller: &controller{
+				engine:                      api,
+				volumeExpansionPollInterval: time.Nanosecond,
+			},
+			api: api,
 		}
 	}
 
@@ -87,11 +91,12 @@ func TestControllerExpandVolume(t *testing.T) {
 			t.Fatalf("Expected no response, got %#v", resp)
 		}
 	})
-	t.Run("engine is called with proper parameters", func(t *testing.T) {
+	t.Run("waits until the expanded capacity is ready", func(t *testing.T) {
 		t.Parallel()
 		var (
-			bundle = setup(t)
-			ctx    = context.TODO()
+			bundle  = setup(t)
+			ctx     = context.TODO()
+			getCall int
 		)
 
 		bundle.api.EXPECT().
@@ -103,9 +108,22 @@ func TestControllerExpandVolume(t *testing.T) {
 		bundle.api.EXPECT().
 			Get(gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, volume *dynamicvolumev1.Volume, _ ...any) error {
-				volume.State.Type = gs.StateTypeOK
+				getCall++
+				switch getCall {
+				case 1:
+					// The first read may still return the state from before the asynchronous update.
+					volume.Size = oneGibibyteInBytes / 2
+					volume.State.Type = gs.StateTypeOK
+				case 2:
+					volume.Size = oneGibibyteInBytes
+					volume.State.Type = gs.StateTypePending
+				default:
+					volume.Size = oneGibibyteInBytes
+					volume.State.Type = gs.StateTypeOK
+				}
 				return nil
-			})
+			}).
+			AnyTimes()
 
 		resp, err := bundle.controller.ControllerExpandVolume(ctx, &csi.ControllerExpandVolumeRequest{
 			VolumeId:      "expand-volume",
@@ -116,6 +134,9 @@ func TestControllerExpandVolume(t *testing.T) {
 		}
 		if resp.CapacityBytes != oneGibibyteInBytes {
 			t.Fatalf("Returned capacity in bytes does not match expected value, got %d, want %d", resp.CapacityBytes, oneGibibyteInBytes)
+		}
+		if getCall < 3 {
+			t.Fatalf("Expected expansion status to be polled until the requested capacity is ready, got %d status request(s)", getCall)
 		}
 	})
 	t.Run("completion errors are properly returned", func(t *testing.T) {

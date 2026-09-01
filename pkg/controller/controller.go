@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"go.anx.io/go-anxcloud/pkg/api"
@@ -26,7 +27,8 @@ const (
 type controller struct {
 	csi.UnimplementedControllerServer
 
-	engine api.API
+	engine                      api.API
+	volumeExpansionPollInterval time.Duration
 }
 
 // New creates a fresh instance of the Controller component, ready to register to a GRPC server.
