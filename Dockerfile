@@ -14,7 +14,8 @@ FROM alpine:3.23.3
 # Keep nfs-utils pinned to its upstream version, but allow Alpine's package revision to differ by architecture.
 # Pinning ca-certificates only gives us the downside of randomly failing Docker builds.
 # hadolint ignore=DL3018
-RUN apk --no-cache add ca-certificates 'nfs-utils=~2.6.4'
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates 'nfs-utils=~2.6.4'
 
 COPY --from=builder /src/csi-driver /csi-driver
 ENTRYPOINT ["/csi-driver"]
