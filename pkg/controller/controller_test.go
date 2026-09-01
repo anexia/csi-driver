@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
 	"github.com/anexia/csi-driver/pkg/internal/mockapi"
@@ -25,7 +26,10 @@ var _ = Describe("Controller Service", func() {
 	BeforeEach(func() {
 		c := gomock.NewController(GinkgoT())
 		engine = mockapi.NewMockAPI(c)
-		cs = &controller{engine: engine}
+		cs = &controller{
+			engine:                    engine,
+			volumeDeleteRetryInterval: time.Nanosecond,
+		}
 	})
 
 	Context("CreateVolume", func() {
@@ -155,6 +159,40 @@ var _ = Describe("Controller Service", func() {
 			})
 
 			Expect(status.Code(err)).To(Equal(codes.Internal))
+			Expect(res).To(BeNil())
+		})
+
+		It("retries deletion while another Engine operation is finishing", func() {
+			testVolumeIdentifier := "test-identifier"
+			volume := &dynamicvolumev1.Volume{Identifier: testVolumeIdentifier}
+
+			gomock.InOrder(
+				engine.EXPECT().Destroy(gomock.Any(), volume).Return(api.NewHTTPError(422, "DELETE", nil, nil)),
+				engine.EXPECT().Destroy(gomock.Any(), volume).Return(nil),
+			)
+
+			res, err := cs.DeleteVolume(context.TODO(), &csi.DeleteVolumeRequest{
+				VolumeId: testVolumeIdentifier,
+			})
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(res).To(Equal(&csi.DeleteVolumeResponse{}))
+		})
+
+		It("stops retrying temporarily blocked deletions after the configured attempts", func() {
+			testVolumeIdentifier := "test-identifier"
+			cs.volumeDeleteMaxAttempts = 2
+
+			engine.EXPECT().
+				Destroy(gomock.Any(), &dynamicvolumev1.Volume{Identifier: testVolumeIdentifier}).
+				Return(api.NewHTTPError(422, "DELETE", nil, nil)).
+				Times(2)
+
+			res, err := cs.DeleteVolume(context.TODO(), &csi.DeleteVolumeRequest{
+				VolumeId: testVolumeIdentifier,
+			})
+
+			Expect(err).To(HaveOccurred())
 			Expect(res).To(BeNil())
 		})
 	})

@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -20,8 +22,10 @@ const (
 	oneMebibyteInBytes int64 = 1 << (2 * 10)             // = 1 MiB
 	oneGibibyteInBytes int64 = oneMebibyteInBytes * 1024 // = 1 GiB
 
-	defaultVolumeSize int64 = 10 * oneGibibyteInBytes        // Default size for volumes without a capacity range specified = 10 GiB
-	maxVolumeSize     int64 = 10 * 1024 * oneGibibyteInBytes // Maximum volume size (= 10TiB)
+	defaultVolumeSize                int64         = 10 * oneGibibyteInBytes        // Default size for volumes without a capacity range specified = 10 GiB
+	maxVolumeSize                    int64         = 10 * 1024 * oneGibibyteInBytes // Maximum volume size (= 10TiB)
+	defaultVolumeDeleteRetryInterval time.Duration = 5 * time.Second
+	defaultVolumeDeleteMaxAttempts                 = 13
 )
 
 type controller struct {
@@ -29,6 +33,8 @@ type controller struct {
 
 	engine                      api.API
 	volumeExpansionPollInterval time.Duration
+	volumeDeleteRetryInterval   time.Duration
+	volumeDeleteMaxAttempts     int
 }
 
 // New creates a fresh instance of the Controller component, ready to register to a GRPC server.
@@ -99,13 +105,46 @@ func (cs *controller) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeReq
 	}
 
 	klog.V(4).InfoS("Deleting ADV volume in Anexia Engine")
-	if err := cs.engine.Destroy(ctx, &dynamicvolumev1.Volume{Identifier: req.VolumeId}); api.IgnoreNotFound(err) != nil {
-		klog.V(2).ErrorS(err, "Volume deletion failed")
-		return nil, engineErrorToGRPC(err)
+	volume := &dynamicvolumev1.Volume{Identifier: req.VolumeId}
+	maxAttempts := cs.deleteMaxAttempts()
+	for attempt := 1; ; attempt++ {
+		err := cs.engine.Destroy(ctx, volume)
+		if api.IgnoreNotFound(err) == nil {
+			klog.V(2).Info("Volume successfully deleted")
+			return &csi.DeleteVolumeResponse{}, nil
+		}
+
+		var httpError api.HTTPError
+		if !errors.As(err, &httpError) || httpError.StatusCode() != http.StatusUnprocessableEntity || attempt >= maxAttempts {
+			klog.V(2).ErrorS(err, "Volume deletion failed", "attempt", attempt)
+			return nil, engineErrorToGRPC(err)
+		}
+
+		klog.V(2).InfoS("Volume deletion temporarily blocked, retrying", "id", req.GetVolumeId(), "attempt", attempt)
+		timer := time.NewTimer(cs.deleteRetryInterval())
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, status.FromContextError(ctx.Err()).Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (cs *controller) deleteRetryInterval() time.Duration {
+	if cs.volumeDeleteRetryInterval > 0 {
+		return cs.volumeDeleteRetryInterval
 	}
 
-	klog.V(2).Info("Volume successfully deleted")
-	return &csi.DeleteVolumeResponse{}, nil
+	return defaultVolumeDeleteRetryInterval
+}
+
+func (cs *controller) deleteMaxAttempts() int {
+	if cs.volumeDeleteMaxAttempts > 0 {
+		return cs.volumeDeleteMaxAttempts
+	}
+
+	return defaultVolumeDeleteMaxAttempts
 }
 
 func (cs *controller) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
