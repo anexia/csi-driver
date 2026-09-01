@@ -24,6 +24,16 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+### Security
+
+* Update Alpine and Go dependencies to resolve known vulnerabilities.
+
+### Fixed
+
+* Allow architecture-specific Alpine revisions of the `nfs-utils` package.
+* Ensure privileged sanity tests can access `make` and the configured Go toolchain.
+* Validate volume expansion requests and wait for asynchronous expansion before returning.
+
 ## [0.2.0] -- 2025-07-29
 
 ### Added
