@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 RUN go build -ldflags "-s -w -X github.com/anexia/csi-driver/pkg/version.Version=$version" -trimpath ./cmd/csi-driver
 
-FROM alpine:3.23.5
+FROM alpine:3.24.1
 
 # Keep nfs-utils pinned to its upstream version, but allow Alpine's package revision to differ by architecture.
 # Pinning ca-certificates only gives us the downside of randomly failing Docker builds.
