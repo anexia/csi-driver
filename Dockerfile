@@ -7,7 +7,7 @@ COPY go.sum go.mod ./
 RUN go mod download
 
 COPY . .
-RUN go build -ldflags "-s -w -X github.com/anexia/csi-driver/pkg/version.Version=$version" ./cmd/csi-driver
+RUN go build -ldflags "-s -w -X github.com/anexia/csi-driver/pkg/version.Version=$version" -trimpath ./cmd/csi-driver
 
 FROM alpine:3.23.5
 
