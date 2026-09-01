@@ -5,6 +5,9 @@ import (
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"go.anx.io/go-anxcloud/pkg/apis/common/gs"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 )
 
@@ -22,6 +25,10 @@ import (
 // [Volume Expansion API]: https://kubernetes-csi.github.io/docs/volume-expansion.html
 func (cs *controller) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	klog.V(2).InfoS("Expanding volume", "id", req.GetVolumeId(), "request", req)
+	if err := checkControllerExpandVolumeRequest(req); err != nil {
+		klog.V(2).ErrorS(err, "Volume expansion request validation failed", "request", req)
+		return nil, status.Errorf(codes.InvalidArgument, "request check failed: %s", err)
+	}
 
 	newCapacityBytes := sizeFromCapacityRange(req.CapacityRange)
 
@@ -32,6 +39,10 @@ func (cs *controller) ControllerExpandVolume(ctx context.Context, req *csi.Contr
 	}
 	if err := cs.engine.Update(ctx, &v); err != nil {
 		klog.V(2).ErrorS(err, "ADV volume could not be updated", "id", req.GetVolumeId())
+		return nil, engineErrorToGRPC(err)
+	}
+	if err := gs.AwaitCompletion(ctx, cs.engine, &v); err != nil {
+		klog.V(2).ErrorS(err, "ADV volume expansion did not complete", "id", req.GetVolumeId())
 		return nil, engineErrorToGRPC(err)
 	}
 
