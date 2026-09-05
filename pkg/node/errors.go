@@ -7,6 +7,8 @@ var (
 	ErrVolumeIDNotProvided = errors.New("volume id was not provided")
 	// ErrTargetPathNotProvided is returned if no target path was provided
 	ErrTargetPathNotProvided = errors.New("target path was not provided")
+	// ErrVolumePathNotProvided is returned if no volume path was provided
+	ErrVolumePathNotProvided = errors.New("volume path was not provided")
 	// ErrVolumeCapabilityNotProvided is returned if no volume capability was provided
 	ErrVolumeCapabilityNotProvided = errors.New("volume capability not provided")
 	// ErrMountURLNotPresentInPublishContext is returned if no mountURL is present in the PublishContext
