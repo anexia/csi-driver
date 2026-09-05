@@ -39,6 +39,11 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    permissions:
+      # needed to commit the coverage badge to the "badges" branch
+      contents: write
+      # needed to post the coverage report as a PR comment
+      pull-requests: write
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v7
@@ -56,6 +61,52 @@ jobs:
         with:
           name: unit-coverage
           path: coverage.out
+
+      # fetch the coverage breakdown of the latest successful main build so
+      # the report below can show the coverage difference against main.
+      - name: download main coverage breakdown
+        id: download-main-breakdown
+        uses: dawidd6/action-download-artifact@v24
+        with:
+          branch: main
+          workflow_conclusion: success
+          name: main.breakdown
+          if_no_artifact_found: warn
+
+      # generates the coverage report and badge. No thresholds are set, so
+      # this step never fails the build. For pushes to main it commits the
+      # badge to the orphan "badges" branch so README.md can embed it from
+      # raw.githubusercontent.com without any third party service.
+      - name: publish coverage badge
+        id: coverage
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          profile: coverage.out
+          breakdown-file-name: ${{ github.ref_name == 'main' && 'main.breakdown' || '' }}
+          diff-base-breakdown-file-name: ${{ steps.download-main-breakdown.outputs.found_artifact == 'true' && 'main.breakdown' || '' }}
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges
+
+      - name: upload main coverage breakdown
+        if: github.ref_name == 'main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: main.breakdown
+          path: main.breakdown
+          if-no-files-found: error
+
+      # the token is read-only for PRs from forks and dependabot, so a failed
+      # comment must not fail the build.
+      - name: post coverage report to PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          comment-tag: coverage-report
+          message: |
+            go-test-coverage report:
+            ```
+            ${{ fromJSON(steps.coverage.outputs.report) }}```
 
   docker-build:
     runs-on: ubuntu-latest
