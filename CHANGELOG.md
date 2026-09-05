@@ -43,6 +43,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Reject `CreateVolume` requests with an empty list of volume capabilities.
 * Shut the gRPC server down gracefully on `SIGINT`/`SIGTERM` and exit cleanly instead of being killed by the signal.
 * Surface the engine error when `CreateVolume` is rejected and no volume with the same name exists, instead of reporting a misleading "not found".
+* Advertise the `VolumeExpansion` `ONLINE` plugin capability so container orchestrators know volumes can be expanded while in use.
 
 ### Changed
 
