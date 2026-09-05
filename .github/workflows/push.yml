@@ -39,6 +39,9 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    # needed to commit the coverage badge to the "badges" branch
+    permissions:
+      contents: write
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v7
@@ -56,6 +59,16 @@ jobs:
         with:
           name: unit-coverage
           path: coverage.out
+
+      # generates the coverage badge and, for pushes to main, commits it to
+      # the orphan "badges" branch so README.md can embed it from
+      # raw.githubusercontent.com without any third party service.
+      - name: publish coverage badge
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          profile: coverage.out
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges
 
   docker-build:
     runs-on: ubuntu-latest
