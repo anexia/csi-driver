@@ -41,6 +41,10 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Exit with a non-zero status when the driver fails to start or terminates with an error.
 * Reject `CreateVolume` requests with an empty list of volume capabilities.
 
+### Changed
+
+* Update the CSI sidecar images in the example deployment: `csi-provisioner` v6.3.0, `csi-attacher` v4.12.0, `csi-resizer` v2.2.1, `livenessprobe` v2.19.0 and `csi-node-driver-registrar` v2.17.0.
+
 ## [0.2.0] -- 2025-07-29
 
 ### Added
