@@ -83,7 +83,7 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		return nil, status.Errorf(codes.Unavailable, "Volume not ready yet, construction of mount URL was not possible")
 	}
 
-	klog.V(4).Info("Volume successfully created", "id", volume.Identifier)
+	klog.V(4).InfoS("Volume successfully created", "id", volume.Identifier)
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volume.Identifier,
