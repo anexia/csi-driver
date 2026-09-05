@@ -30,16 +30,25 @@ func (identity) GetPluginInfo(_ context.Context, _ *csi.GetPluginInfoRequest) (*
 }
 
 func (is identity) GetPluginCapabilities(_ context.Context, _ *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	capabilities := make([]*csi.PluginCapability, 0, 1)
+	capabilities := make([]*csi.PluginCapability, 0, 2)
 
 	if is.components.Has(types.Controller) {
-		capabilities = append(capabilities, &csi.PluginCapability{
-			Type: &csi.PluginCapability_Service_{
-				Service: &csi.PluginCapability_Service{
-					Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
+		capabilities = append(capabilities,
+			&csi.PluginCapability{
+				Type: &csi.PluginCapability_Service_{
+					Service: &csi.PluginCapability_Service{
+						Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
+					},
 				},
 			},
-		})
+			&csi.PluginCapability{
+				Type: &csi.PluginCapability_VolumeExpansion_{
+					VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
+						Type: csi.PluginCapability_VolumeExpansion_ONLINE,
+					},
+				},
+			},
+		)
 	}
 
 	return &csi.GetPluginCapabilitiesResponse{
