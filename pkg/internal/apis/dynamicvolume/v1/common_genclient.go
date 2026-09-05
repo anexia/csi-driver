@@ -1,3 +1,4 @@
+// Package v1 contains the go-anxcloud API bindings for the Anexia Dynamic Volume service.
 package v1
 
 import (
@@ -39,7 +40,7 @@ type commonRequestBody struct {
 	State string `json:"state,omitempty"`
 }
 
-func requestBody(ctx context.Context, br func() interface{}) (interface{}, error) {
+func requestBody(ctx context.Context, br func() any) (any, error) {
 	op, err := types.OperationFromContext(ctx)
 	if err != nil {
 		return nil, err
