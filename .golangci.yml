@@ -1,0 +1,148 @@
+# golangci-lint v2 configuration.
+# Based on the community "golden" config (https://github.com/maratori/golangci-lint-config)
+# trimmed to what is useful for this repo: a gRPC CSI driver using klog and ginkgo/gomega.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # standard set
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # bugs / correctness
+    - asasalint
+    - bidichk
+    - bodyclose
+    - copyloopvar
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gosec
+    - loggercheck
+    - makezero
+    - musttag
+    - nilerr
+    - nilnesserr
+    - noctx
+    - protogetter
+    - reassign
+    - recvcheck
+    - unparam
+    - wastedassign
+    # style / maintainability
+    - asciicheck
+    - embeddedstructfieldcheck
+    - funcorder
+    - gocritic
+    - godot
+    - gomoddirectives
+    - goprintffuncname
+    - iface
+    - intrange
+    - mirror
+    - modernize
+    - nakedret
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - revive
+    - unconvert
+    - usestdlibvars
+    - whitespace
+    # tests
+    - ginkgolinter
+    - paralleltest
+    - tparallel
+    - usetesting
+
+  settings:
+    embeddedstructfieldcheck:
+      forbid-mutex: true
+    errcheck:
+      check-type-assertions: true
+    exhaustive:
+      check:
+        - switch
+        - map
+    funcorder:
+      struct-method: false
+    gocritic:
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+      settings:
+        shadow:
+          strict: false
+    loggercheck:
+      klog: true
+    nakedret:
+      max-func-lines: 0
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    perfsprint:
+      strconcat: false
+    reassign:
+      patterns:
+        - ".*"
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: dot-imports
+          arguments:
+            - allowedPackages:
+                - github.com/onsi/ginkgo/v2
+                - github.com/onsi/gomega
+        - name: unused-parameter
+          arguments:
+            - allowRegex: "^_"
+        - name: unused-receiver
+          arguments:
+            - allowRegex: "^_"
+    staticcheck:
+      checks:
+        - all
+        - -ST1000 # package comments are enforced by revive
+        - -ST1016 # receiver name consistency is enforced by revive
+        - -QF1008 # embedded field selector shortening is a matter of taste
+
+  exclusions:
+    generated: strict
+    warn-unused: true
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # ginkgo closures and table entries take parameters they do not always use,
+      # and test helpers do not need doc comments.
+      - path: _test\.go
+        linters:
+          - gosec
+          - protogetter
+          - unparam
+      - path: _test\.go
+        linters:
+          - revive
+        text: "^(unused-parameter|exported|package-comments):"
+      # ginkgo suite entrypoints (RunSpecs) manage their own parallelism.
+      - path: main_test\.go
+        linters:
+          - paralleltest
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
