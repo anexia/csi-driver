@@ -1,7 +1,7 @@
 csi-driver:
 	go build ./cmd/csi-driver
 
-test: hack
+test:
 	go run github.com/onsi/ginkgo/v2/ginkgo \
 		-p                                  \
 		-timeout 0                          \
@@ -24,4 +24,7 @@ fmt:
 fmtcheck:
 	@hack/gofmtcheck.sh
 
-.PHONY: csi-driver test test-sanity depscheck fmt
+go-lint:
+	golangci-lint run
+
+.PHONY: csi-driver test test-sanity depscheck fmt fmtcheck go-lint

@@ -44,7 +44,7 @@ var _ = Describe("Controller Service", func() {
 				CapacityRange: &csi.CapacityRange{
 					RequiredBytes: 12345,
 				},
-				VolumeCapabilities: []*csi.VolumeCapability{},
+				VolumeCapabilities: []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}}}},
 				Parameters: map[string]string{
 					"csi.anx.io/ads-class":                 "ENT2",
 					"csi.anx.io/storage-server-identifier": testStorageServerIdentifier,

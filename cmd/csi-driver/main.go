@@ -29,5 +29,6 @@ func main() {
 	err := driver.Run(ctx, components, *nodeID, *endpoint)
 	if err != nil {
 		klog.Error(err)
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 }

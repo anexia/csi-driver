@@ -33,6 +33,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Allow architecture-specific Alpine revisions of the `nfs-utils` package.
 * Ensure privileged sanity tests can access `make` and the configured Go toolchain.
 * Validate volume expansion requests, wait for asynchronous expansion, and retry temporarily blocked cleanup.
+* Exit with a non-zero status when the driver fails to start or terminates with an error.
+* Reject `CreateVolume` requests with an empty list of volume capabilities.
 
 ## [0.2.0] -- 2025-07-29
 

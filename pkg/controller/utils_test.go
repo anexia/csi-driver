@@ -47,7 +47,7 @@ var _ = Describe("Controller Service Utils", func() {
 			req = &csi.CreateVolumeRequest{
 				Name:               "mocked-volume-name",
 				CapacityRange:      &csi.CapacityRange{RequiredBytes: 12345},
-				VolumeCapabilities: []*csi.VolumeCapability{},
+				VolumeCapabilities: []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}}}},
 			}
 		})
 
@@ -65,7 +65,13 @@ var _ = Describe("Controller Service Utils", func() {
 		It("returns an error when no volume capabilities have been provided", func() {
 			req.VolumeCapabilities = nil
 			err := checkCreateVolumeRequest(req)
-			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ErrVolumeCapabilitiesNotProvided))
+		})
+
+		It("returns an error when an empty list of volume capabilities has been provided", func() {
+			req.VolumeCapabilities = []*csi.VolumeCapability{}
+			err := checkCreateVolumeRequest(req)
+			Expect(err).To(MatchError(ErrVolumeCapabilitiesNotProvided))
 		})
 
 		It("returns an error when unsupported volume capabilities have been provided", func() {
