@@ -35,7 +35,7 @@ func (cs *controller) ControllerExpandVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Errorf(codes.InvalidArgument, "request check failed: %s", err)
 	}
 
-	newCapacityBytes := sizeFromCapacityRange(req.CapacityRange)
+	newCapacityBytes := sizeFromCapacityRange(req.GetCapacityRange())
 
 	klog.V(2).InfoS("Updating ADV volume to resize to new capacity", "new_capacity_bytes", newCapacityBytes)
 	v := dynamicvolumev1.Volume{

@@ -1,3 +1,4 @@
+// Package server wires the CSI components into a gRPC server listening on the configured endpoint.
 package server
 
 import (
@@ -29,12 +30,12 @@ func New(opts Options) (Server, error) {
 	}
 
 	if protocol == "unix" {
-		if err := os.Remove(endpoint); err != nil && !os.IsNotExist(err) {
+		if err = os.Remove(endpoint); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("error deleting existing object at socket path: %w", err)
 		}
 	}
 
-	listener, err := net.Listen(protocol, endpoint)
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), protocol, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error listening on endpoint: %w", err)
 	}
