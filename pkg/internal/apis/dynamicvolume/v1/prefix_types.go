@@ -2,6 +2,7 @@ package v1
 
 import "go.anx.io/go-anxcloud/pkg/apis/common/gs"
 
+// Prefix is a network prefix a dynamic volume is reachable from.
 type Prefix struct {
 	gs.GenericService
 	gs.HasState

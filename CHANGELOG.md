@@ -34,6 +34,10 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Ensure privileged sanity tests can access `make` and the configured Go toolchain.
 * Validate volume expansion requests, wait for asynchronous expansion, and retry temporarily blocked cleanup.
 
+### Changed
+
+* (internal) Document exported API types and clean up lint findings in internal packages (@ProbstenHias).
+
 ## [0.2.0] -- 2025-07-29
 
 ### Added

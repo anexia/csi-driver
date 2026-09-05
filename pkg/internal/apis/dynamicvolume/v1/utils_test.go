@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"fmt"
+	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,8 +15,7 @@ var _ = Describe("utils", func() {
 		})
 
 		It("returns slices mapped by map function", func() {
-			stringify := func(i int) string { return fmt.Sprint(i) }
-			res := mapPointerSlice(stringify, &[]int{0, 1, 2})
+			res := mapPointerSlice(strconv.Itoa, &[]int{0, 1, 2})
 			Expect(res).To(Equal(&[]string{"0", "1", "2"}))
 		})
 	})
