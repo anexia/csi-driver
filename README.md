@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/anexia/csi-driver/actions/workflows/push.yml/badge.svg?branch=main&event=push)](https://github.com/anexia/csi-driver/actions/workflows/push.yml)
 [![Maintainability](https://qlty.sh/gh/anexia/projects/csi-driver/maintainability.svg)](https://qlty.sh/gh/anexia/projects/csi-driver)
-[![Code Coverage](https://qlty.sh/gh/anexia/projects/csi-driver/coverage.svg)](https://qlty.sh/gh/anexia/projects/csi-driver)
+[![Code Coverage](https://raw.githubusercontent.com/anexia/csi-driver/badges/.badges/main/coverage.svg)](https://github.com/anexia/csi-driver/actions/workflows/push.yml)
 
 This is a csi-driver for Anexia!
 
