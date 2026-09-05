@@ -41,6 +41,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Create missing target paths with `0750` permissions instead of an inaccessible `0000` directory.
 * Exit with a non-zero status when the driver fails to start or terminates with an error.
 * Reject `CreateVolume` requests with an empty list of volume capabilities.
+* Shut the gRPC server down gracefully on `SIGINT`/`SIGTERM` and exit cleanly instead of being killed by the signal.
 
 ### Changed
 
