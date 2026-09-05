@@ -1,3 +1,4 @@
+// Package controller implements the CSI controller service backed by Anexia Dynamic Volumes.
 package controller
 
 import (
@@ -105,7 +106,7 @@ func (cs *controller) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeReq
 	}
 
 	klog.V(4).InfoS("Deleting ADV volume in Anexia Engine")
-	volume := &dynamicvolumev1.Volume{Identifier: req.VolumeId}
+	volume := &dynamicvolumev1.Volume{Identifier: req.GetVolumeId()}
 	maxAttempts := cs.deleteMaxAttempts()
 	for attempt := 1; ; attempt++ {
 		err := cs.engine.Destroy(ctx, volume)
@@ -147,17 +148,17 @@ func (cs *controller) deleteMaxAttempts() int {
 	return defaultVolumeDeleteMaxAttempts
 }
 
-func (cs *controller) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (*controller) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	// intentional noop to allow non-breaking activation in the future
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-func (cs *controller) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (*controller) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	// intentional noop to allow non-breaking activation in the future
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (cs *controller) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+func (*controller) ControllerGetCapabilities(_ context.Context, _ *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
 			{

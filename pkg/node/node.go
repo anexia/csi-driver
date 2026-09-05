@@ -1,3 +1,4 @@
+// Package node implements the CSI node service, mounting Anexia Dynamic Volumes via NFS.
 package node
 
 import (
@@ -31,20 +32,20 @@ func New(nodeID string) (csi.NodeServer, error) {
 	}, nil
 }
 
-func (ns node) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+func (node) NodeGetCapabilities(_ context.Context, _ *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{},
 	}, nil
 }
 
-func (ns node) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+func (ns node) NodeGetInfo(_ context.Context, _ *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{
 		NodeId: ns.nodeID,
 	}, nil
 }
 
-func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(2).InfoS("Trying to mount volume", "id", req.VolumeId, "path", req.GetTargetPath())
+func (ns node) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	klog.V(2).InfoS("Trying to mount volume", "id", req.GetVolumeId(), "path", req.GetTargetPath())
 
 	if err := checkNodePublishVolumeRequest(req); err != nil {
 		klog.ErrorS(err, "NodePublishVolumeRequest invalid")
@@ -53,7 +54,7 @@ func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 
 	opts := req.GetVolumeCapability().GetMount().GetMountFlags()
 	if req.GetReadonly() {
-		klog.V(2).InfoS("Volume will be mounted as read-only", "id", req.VolumeId)
+		klog.V(2).InfoS("Volume will be mounted as read-only", "id", req.GetVolumeId())
 		opts = append(opts, "ro")
 	}
 
@@ -63,9 +64,9 @@ func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 	if err != nil {
 		if os.IsNotExist(err) {
 			klog.V(3).InfoS("Creating new directory at target path", "target_path", req.GetTargetPath())
-			if err := os.Mkdir(req.GetTargetPath(), os.FileMode(os.ModeDir)); err != nil {
-				klog.V(2).ErrorS(err, "Creating a directory at path failed, cannot mount PVC", "target_path", req.GetTargetPath())
-				return nil, status.Errorf(codes.Internal, "error creating target directory: %q", err)
+			if mkdirErr := os.Mkdir(req.GetTargetPath(), os.ModeDir); mkdirErr != nil {
+				klog.V(2).ErrorS(mkdirErr, "Creating a directory at path failed, cannot mount PVC", "target_path", req.GetTargetPath())
+				return nil, status.Errorf(codes.Internal, "error creating target directory: %q", mkdirErr)
 			}
 
 			notMount = true
@@ -76,25 +77,25 @@ func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 	}
 
 	if !notMount {
-		klog.V(2).Infof("NodePublishVolume: Mount already present at target path %q.", req.TargetPath)
+		klog.V(2).Infof("NodePublishVolume: Mount already present at target path %q.", req.GetTargetPath())
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	klog.V(2).InfoS("Mounting volume to target path", "id", req.VolumeId)
+	klog.V(2).InfoS("Mounting volume to target path", "id", req.GetVolumeId())
 	mountURL := req.GetVolumeContext()["mountURL"]
 	if err := ns.mounter.Mount(mountURL, req.GetTargetPath(), "nfs", opts); err != nil {
 		klog.V(2).ErrorS(err, "Mounting volume failed", "target_path", req.GetTargetPath())
 		return nil, status.Errorf(codes.Internal, "error mounting volume: %s", err)
 	}
 
-	klog.V(4).InfoS("Volume mounted successfully", "id", req.VolumeId)
+	klog.V(4).InfoS("Volume mounted successfully", "id", req.GetVolumeId())
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (ns node) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (ns node) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).InfoS(
 		"Trying to unmount volume",
-		"id", req.VolumeId,
+		"id", req.GetVolumeId(),
 		"path", req.GetTargetPath(),
 	)
 

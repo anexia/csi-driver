@@ -5,15 +5,15 @@ import (
 )
 
 func checkNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
-	if req.TargetPath == "" {
+	if req.GetTargetPath() == "" {
 		return ErrTargetPathNotProvided
 	}
 
-	if req.VolumeCapability == nil {
+	if req.GetVolumeCapability() == nil {
 		return ErrVolumeCapabilityNotProvided
 	}
 
@@ -25,11 +25,11 @@ func checkNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 }
 
 func checkNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
-	if req.TargetPath == "" {
+	if req.GetTargetPath() == "" {
 		return ErrTargetPathNotProvided
 	}
 
