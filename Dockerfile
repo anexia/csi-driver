@@ -18,5 +18,9 @@ FROM alpine:3.24.1
 RUN apk upgrade --no-cache && \
     apk add --no-cache ca-certificates 'nfs-utils=~2.6.4'
 
+# Pull util-linux libraries from edge until Alpine 3.24 stable ships the patched version, then drop this step.
+RUN apk add --no-cache -X https://dl-cdn.alpinelinux.org/alpine/edge/main \
+    'libblkid>=2.42.3' 'libmount>=2.42.3' 'libuuid>=2.42.3'
+
 COPY --from=builder /src/csi-driver /csi-driver
 ENTRYPOINT ["/csi-driver"]
