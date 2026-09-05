@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -17,6 +18,9 @@ type node struct {
 
 	nodeID  string
 	mounter mount.Interface
+
+	// statfs is overridden in tests, it defaults to statfsUsage
+	statfs func(path string) (unix.Statfs_t, error)
 }
 
 // New creates a fresh instance of the Node component, ready to register to a GRPC server.
@@ -33,7 +37,69 @@ func New(nodeID string) (csi.NodeServer, error) {
 
 func (ns node) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: []*csi.NodeServiceCapability{},
+		Capabilities: []*csi.NodeServiceCapability{
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+// statfsFunc returns the configured statfs implementation, defaulting to the real syscall.
+func (ns node) statfsFunc() func(path string) (unix.Statfs_t, error) {
+	if ns.statfs != nil {
+		return ns.statfs
+	}
+
+	return statfsUsage
+}
+
+func (ns node) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	klog.V(4).InfoS("Collecting volume stats", "id", req.GetVolumeId(), "path", req.GetVolumePath())
+
+	if err := checkNodeGetVolumeStatsRequest(req); err != nil {
+		klog.V(4).ErrorS(err, "NodeGetVolumeStatsRequest invalid")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid NodeGetVolumeStatsRequest: %s", err)
+	}
+
+	// An existing directory without a mount is not the volume, it is the node filesystem
+	// showing through the empty mount point, so its usage must not be reported as the volume's.
+	notMount, err := ns.mounter.IsLikelyNotMountPoint(req.GetVolumePath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			klog.V(4).ErrorS(err, "Volume path does not exist", "path", req.GetVolumePath())
+			return nil, status.Errorf(codes.NotFound, "volume path %q does not exist", req.GetVolumePath())
+		}
+
+		klog.V(2).ErrorS(err, "Not possible to validate whether the volume path is a mount", "path", req.GetVolumePath())
+		return nil, status.Errorf(codes.Internal, "error checking if volume path is mount: %s", err)
+	}
+
+	if notMount {
+		klog.V(4).InfoS("No volume mounted at volume path", "path", req.GetVolumePath())
+		return nil, status.Errorf(codes.NotFound, "no volume mounted at volume path %q", req.GetVolumePath())
+	}
+
+	statfs, err := ns.statfsFunc()(req.GetVolumePath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			klog.V(4).ErrorS(err, "Volume path vanished while collecting stats", "path", req.GetVolumePath())
+			return nil, status.Errorf(codes.NotFound, "volume path %q does not exist", req.GetVolumePath())
+		}
+
+		klog.V(2).ErrorS(err, "Collecting volume stats failed", "path", req.GetVolumePath())
+		return nil, status.Errorf(codes.Internal, "error collecting volume stats: %s", err)
+	}
+
+	bytes, inodes := volumeStats(statfs)
+
+	klog.V(4).InfoS("Volume stats collected successfully", "id", req.GetVolumeId())
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{bytes, inodes},
 	}, nil
 }
 

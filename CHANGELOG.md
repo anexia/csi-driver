@@ -24,6 +24,11 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 -->
 
+### Added
+
+* node: implement `NodeGetVolumeStats` and advertise the `VOLUME_STATS` capability, so kubelet
+  exports the `kubelet_volume_stats_*` metrics for `csi.anx.io` volumes (#374, @ProbstenHias)
+  
 ### Security
 
 * Update Alpine and Go dependencies to resolve known vulnerabilities.
