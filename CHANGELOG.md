@@ -44,6 +44,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Shut the gRPC server down gracefully on `SIGINT`/`SIGTERM` and exit cleanly instead of being killed by the signal.
 * Surface the engine error when `CreateVolume` is rejected and no volume with the same name exists, instead of reporting a misleading "not found".
 * Advertise the `VolumeExpansion` `ONLINE` plugin capability so container orchestrators know volumes can be expanded while in use.
+* Return `OUT_OF_RANGE` from `CreateVolume` and `ControllerExpandVolume` when the requested capacity range cannot be satisfied, instead of silently provisioning a smaller volume.
+* Accept `CreateVolume` requests without a capacity range and fall back to the default volume size, as the CSI spec marks the field optional.
 
 ### Changed
 
