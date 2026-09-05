@@ -134,9 +134,8 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 	if err := engine.Create(ctx, &volume); err != nil {
 		httpError := api.HTTPError{}
 		if errors.As(err, &httpError) && httpError.StatusCode() == http.StatusUnprocessableEntity {
-			klog.V(4).InfoS("Volume already exists at engine", "name", req.GetName())
-			// if we land here, probably there exists another volume with the same name
-			return handleIdempotency(ctx, engine, req)
+			klog.V(4).InfoS("Engine rejected volume creation, checking for existing volume with same name", "name", req.GetName())
+			return handleIdempotency(ctx, engine, req, err)
 		}
 
 		return nil, fmt.Errorf("create volume: %w", err)
@@ -163,9 +162,15 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 	return &volume, nil
 }
 
-func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest) (*dynamicvolumev1.Volume, error) {
+// handleIdempotency is called when the engine rejected the create request. It looks up a volume with the
+// same name and returns it if it matches the request. When no such volume exists, the rejection was caused
+// by something else (invalid parameters, quota, ...) and createErr is surfaced to the caller.
+func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest, createErr error) (*dynamicvolumev1.Volume, error) {
 	klog.V(2).InfoS("Searching for existing volume with same name", "name", req.GetName())
 	original, err := findVolumeByName(ctx, engine, req.GetName())
+	if errors.Is(err, api.ErrNotFound) {
+		return nil, status.Errorf(codes.InvalidArgument, "engine rejected volume creation: %s", createErr)
+	}
 	if err != nil {
 		// chosen codes.Internal over NotFound
 		// because NotFound might be confusing in CreateVolume context

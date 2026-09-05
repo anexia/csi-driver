@@ -190,6 +190,31 @@ var _ = Describe("Controller Service Utils", func() {
 			Expect(status.Convert(err).Message()).To(Equal("ADV volume went into error state, reprovisioning it"))
 		})
 
+		It("surfaces the engine error when a rejected create has no existing volume with the same name", func() {
+			a.EXPECT().Create(gomock.Any(), &expectedVolumeCreate).Return(api.NewHTTPError(http.StatusUnprocessableEntity, "POST", nil, nil))
+
+			// List yields no volumes
+			a.EXPECT().List(gomock.Any(), &dynamicvolumev1.Volume{Name: "mocked-volume-name"}, gomock.Any()).DoAndReturn(func(_ any, v *dynamicvolumev1.Volume, opts ...types.ListOption) error {
+				options := types.ListOptions{}
+				for _, opt := range opts {
+					Expect(opt.ApplyToList(&options)).To(Succeed())
+				}
+
+				c := make(chan types.ObjectRetriever)
+				close(c)
+				*options.ObjectChannel = c
+
+				return nil
+			})
+
+			v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+
+			Expect(v).To(BeNil())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+			Expect(status.Convert(err).Message()).To(ContainSubstring(http.StatusText(http.StatusUnprocessableEntity)))
+			Expect(status.Convert(err).Message()).ToNot(ContainSubstring("not exist"))
+		})
+
 		Context("idempotency", func() {
 			BeforeEach(func() {
 				// Create succeeds
