@@ -76,6 +76,20 @@ var _ = Describe("Node Service", func() {
 			Expect(mounts[0].Opts).ToNot(ContainElement("ro"))
 		})
 
+		It("creates a missing target path with owner and group access", func() {
+			validRequest.TargetPath = filepath.Join(targetPath, "missing")
+			mounter := mount.NewFakeMounter(nil)
+			n := &node{mounter: mounter}
+
+			_, err := n.NodePublishVolume(context.TODO(), validRequest)
+
+			Expect(err).ToNot(HaveOccurred())
+			info, err := os.Stat(validRequest.TargetPath)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(info.IsDir()).To(BeTrue())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0750)))
+		})
+
 		It("supports readonly mounts", func() {
 			validRequest.Readonly = true
 			mounter := mount.NewFakeMounter(nil)

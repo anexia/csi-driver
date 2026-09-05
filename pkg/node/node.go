@@ -63,7 +63,7 @@ func (ns node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 	if err != nil {
 		if os.IsNotExist(err) {
 			klog.V(3).InfoS("Creating new directory at target path", "target_path", req.GetTargetPath())
-			if err := os.Mkdir(req.GetTargetPath(), os.FileMode(os.ModeDir)); err != nil {
+			if err := os.MkdirAll(req.GetTargetPath(), 0750); err != nil {
 				klog.V(2).ErrorS(err, "Creating a directory at path failed, cannot mount PVC", "target_path", req.GetTargetPath())
 				return nil, status.Errorf(codes.Internal, "error creating target directory: %q", err)
 			}
