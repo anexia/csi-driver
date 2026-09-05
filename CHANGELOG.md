@@ -45,6 +45,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 * (internal) Document exported API types and clean up lint findings in internal packages (@ProbstenHias).
 * (internal) Use proto getters, wrap errors with `%w` and remove shadowed variables in controller, node and server packages (@ProbstenHias).
+* (internal) Add a `.golangci.yml` enabling additional linters and pin the golangci-lint version in CI (@ProbstenHias).
 * Update the CSI sidecar images in the example deployment: `csi-provisioner` v6.3.0, `csi-attacher` v4.12.0, `csi-resizer` v2.2.1, `livenessprobe` v2.19.0 and `csi-node-driver-registrar` v2.17.0.
 
 ## [0.2.0] -- 2025-07-29
