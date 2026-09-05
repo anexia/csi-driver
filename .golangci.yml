@@ -58,6 +58,8 @@ linters:
     - whitespace
     # tests
     - ginkgolinter
+    - paralleltest
+    - tparallel
     - usetesting
 
   settings:
@@ -135,6 +137,10 @@ linters:
         linters:
           - revive
         text: "^(unused-parameter|exported|package-comments):"
+      # ginkgo suite entrypoints (RunSpecs) manage their own parallelism.
+      - path: main_test\.go
+        linters:
+          - paralleltest
 
 formatters:
   enable:
