@@ -322,9 +322,9 @@ var _ = Describe("Controller Service Utils", func() {
 		DescribeTable("sizeFromCapacityRange", func(capacityRange *csi.CapacityRange, expected int64) {
 			Expect(sizeFromCapacityRange(capacityRange)).To(Equal(expected))
 		},
-			Entry("zero value", &csi.CapacityRange{}, int64(defaultVolumeSize)),
-			Entry("nil value", nil, int64(defaultVolumeSize)),
-			Entry("limit bytes greater than default & required not set", &csi.CapacityRange{LimitBytes: 2 * defaultVolumeSize}, int64(defaultVolumeSize)),
+			Entry("zero value", &csi.CapacityRange{}, defaultVolumeSize),
+			Entry("nil value", nil, defaultVolumeSize),
+			Entry("limit bytes greater than default & required not set", &csi.CapacityRange{LimitBytes: 2 * defaultVolumeSize}, defaultVolumeSize),
 			Entry("limit bytes smaller than default & required not set", &csi.CapacityRange{LimitBytes: 10}, int64(10)),
 			Entry("required bytes set", &csi.CapacityRange{RequiredBytes: 20}, int64(20)),
 			// probably shouldn't ever happen...

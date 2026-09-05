@@ -49,11 +49,11 @@ func checkVolumeCapabilities(volumeCapabilities []*csi.VolumeCapability) error {
 }
 
 func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	if req.Name == "" {
+	if req.GetName() == "" {
 		return ErrNameNotProvided
 	}
 
-	if req.CapacityRange == nil {
+	if req.GetCapacityRange() == nil {
 		return ErrCapacityRangeNotProvided
 	}
 
@@ -69,7 +69,7 @@ func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 }
 
 func checkDeleteVolumeRequest(req *csi.DeleteVolumeRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
@@ -77,11 +77,11 @@ func checkDeleteVolumeRequest(req *csi.DeleteVolumeRequest) error {
 }
 
 func checkControllerExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
-	if req.CapacityRange == nil {
+	if req.GetCapacityRange() == nil {
 		return ErrCapacityRangeNotProvided
 	}
 
@@ -89,11 +89,11 @@ func checkControllerExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) 
 }
 
 func checkValidateVolumeCapabilitiesRequest(req *csi.ValidateVolumeCapabilitiesRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
-	if len(req.VolumeCapabilities) == 0 {
+	if len(req.GetVolumeCapabilities()) == 0 {
 		return ErrVolumeCapabilitiesNotProvided
 	}
 
@@ -126,8 +126,8 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 	volume := dynamicvolumev1.Volume{
 		Name:                    req.GetName(),
 		Size:                    sizeFromCapacityRange(req.GetCapacityRange()),
-		StorageServerInterfaces: &[]dynamicvolumev1.StorageServerInterface{{Identifier: req.Parameters["csi.anx.io/storage-server-identifier"]}},
-		ADSClass:                req.Parameters["csi.anx.io/ads-class"],
+		StorageServerInterfaces: &[]dynamicvolumev1.StorageServerInterface{{Identifier: req.GetParameters()["csi.anx.io/storage-server-identifier"]}},
+		ADSClass:                req.GetParameters()["csi.anx.io/ads-class"],
 	}
 	klog.V(4).InfoS("Creating new ADV volume", "volume", volume)
 
@@ -147,10 +147,9 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 		switch {
 		case errors.Is(err, gs.ErrStateError):
 			klog.V(2).InfoS("ADV volume went into error state, deleting it", "engine_identifier", volume.Identifier)
-			err := engine.Destroy(ctx, &volume)
-			if err != nil {
-				klog.V(2).ErrorS(err, "Faulty ADV volume could not be deleted", "engine_identifier", volume.Identifier)
-				return nil, fmt.Errorf("ADV volume deletion of faulty volume failed: %w", err)
+			if destroyErr := engine.Destroy(ctx, &volume); destroyErr != nil {
+				klog.V(2).ErrorS(destroyErr, "Faulty ADV volume could not be deleted", "engine_identifier", volume.Identifier)
+				return nil, fmt.Errorf("ADV volume deletion of faulty volume failed: %w", destroyErr)
 			}
 
 			// We're returning an error here, so that on the next reconciliation loop, the volume is reprovisioned.
@@ -190,14 +189,14 @@ func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVol
 func findVolumeByName(ctx context.Context, engine types.API, name string) (*dynamicvolumev1.Volume, error) {
 	var channel types.ObjectChannel
 	if err := engine.List(ctx, &dynamicvolumev1.Volume{Name: name}, api.ObjectChannel(&channel)); err != nil {
-		return nil, fmt.Errorf("failed listing volumes: %s", err)
+		return nil, fmt.Errorf("failed listing volumes: %w", err)
 	}
 
 	var listResult dynamicvolumev1.Volume
 
 	for retriever := range channel {
 		if err := retriever(&listResult); err != nil {
-			return nil, fmt.Errorf("failed retrieving volume: %s", err)
+			return nil, fmt.Errorf("failed retrieving volume: %w", err)
 		}
 
 		if listResult.Name == name {
@@ -213,7 +212,7 @@ func findVolumeByName(ctx context.Context, engine types.API, name string) (*dyna
 }
 
 func getDynamicStorageServer(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest) (*dynamicvolumev1.StorageServerInterface, error) {
-	storageServer := dynamicvolumev1.StorageServerInterface{Identifier: req.Parameters["csi.anx.io/storage-server-identifier"]}
+	storageServer := dynamicvolumev1.StorageServerInterface{Identifier: req.GetParameters()["csi.anx.io/storage-server-identifier"]}
 	if err := engine.Get(ctx, &storageServer); err != nil {
 		return nil, err
 	}
@@ -235,10 +234,10 @@ func createMountURL(volume *dynamicvolumev1.Volume, storageServer *dynamicvolume
 	)
 
 	if ip == "" {
-		return "", fmt.Errorf("IP not provided on storage server interface")
+		return "", errors.New("IP not provided on storage server interface")
 	}
 	if path == "" {
-		return "", fmt.Errorf("volume without a path yet")
+		return "", errors.New("volume without a path yet")
 	}
 
 	return fmt.Sprintf("%s:%s", ip, path), nil

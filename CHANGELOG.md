@@ -37,6 +37,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 ### Changed
 
 * (internal) Document exported API types and clean up lint findings in internal packages (@ProbstenHias).
+* (internal) Use proto getters, wrap errors with `%w` and remove shadowed variables in controller, node and server packages (@ProbstenHias).
 
 ## [0.2.0] -- 2025-07-29
 
