@@ -43,6 +43,7 @@ Some examples, more below in the actual changelog (newer entries are more likely
 
 ### Changed
 
+* (internal) Document exported API types and clean up lint findings in internal packages (@ProbstenHias).
 * Update the CSI sidecar images in the example deployment: `csi-provisioner` v6.3.0, `csi-attacher` v4.12.0, `csi-resizer` v2.2.1, `livenessprobe` v2.19.0 and `csi-node-driver-registrar` v2.17.0.
 
 ## [0.2.0] -- 2025-07-29

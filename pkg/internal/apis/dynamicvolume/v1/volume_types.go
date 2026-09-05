@@ -4,6 +4,7 @@ import (
 	"go.anx.io/go-anxcloud/pkg/apis/common/gs"
 )
 
+// Volume is a dynamic volume in the Anexia Engine.
 type Volume struct {
 	gs.GenericService
 	gs.HasState

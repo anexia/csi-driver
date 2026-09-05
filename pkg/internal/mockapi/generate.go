@@ -1,6 +1,8 @@
+// Package mockapi contains a mockgen-generated mock of the go-anxcloud API interface.
 package mockapi
 
 import (
+	// keeps gomock in go.mod for the generated code and the go:generate directive below.
 	_ "github.com/golang/mock/gomock"
 )
 
