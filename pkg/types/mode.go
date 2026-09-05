@@ -1,3 +1,4 @@
+// Package types contains types shared between the csi-driver components.
 package types
 
 import "errors"
@@ -17,8 +18,8 @@ const (
 var ErrInvalidComponents = errors.New("invalid components")
 
 // String returns a stringified version of the received Value.
-func (m Components) String() string {
-	switch m {
+func (m *Components) String() string {
+	switch *m {
 	case Controller | Node:
 		return "combined"
 	case Controller:
@@ -47,6 +48,6 @@ func (m *Components) Set(v string) error {
 }
 
 // Has checks if a given component is enabled on the received Value.
-func (m Components) Has(v Components) bool {
-	return (m & v) != 0
+func (m *Components) Has(v Components) bool {
+	return (*m & v) != 0
 }

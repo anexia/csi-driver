@@ -18,11 +18,11 @@ type failingMounter struct {
 	*mount.FakeMounter
 }
 
-func (fm *failingMounter) Mount(source string, target string, fstype string, options []string) error {
+func (*failingMounter) Mount(_ string, _ string, _ string, _ []string) error {
 	return errors.New("foo")
 }
 
-func (fm *failingMounter) Unmount(target string) error {
+func (*failingMounter) Unmount(_ string) error {
 	return errors.New("foo")
 }
 
@@ -33,7 +33,7 @@ var _ = Describe("Node Service", func() {
 		capabilities, err := n.NodeGetCapabilities(context.TODO(), &csi.NodeGetCapabilitiesRequest{})
 
 		Expect(err).ToNot(HaveOccurred())
-		Expect(capabilities.Capabilities).To(HaveLen(0))
+		Expect(capabilities.Capabilities).To(BeEmpty())
 	})
 
 	Context("NodePublishVolume", func() {

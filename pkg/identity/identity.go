@@ -1,3 +1,4 @@
+// Package identity implements the CSI Identity service.
 package identity
 
 import (
@@ -10,6 +11,7 @@ import (
 
 type identity struct {
 	csi.UnimplementedIdentityServer
+
 	components types.Components
 }
 
@@ -20,14 +22,14 @@ func New(components types.Components) (csi.IdentityServer, error) {
 	}, nil
 }
 
-func (is identity) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+func (identity) GetPluginInfo(_ context.Context, _ *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	return &csi.GetPluginInfoResponse{
 		Name:          "csi.anx.io",
 		VendorVersion: version.Version,
 	}, nil
 }
 
-func (is identity) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func (is identity) GetPluginCapabilities(_ context.Context, _ *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	capabilities := make([]*csi.PluginCapability, 0, 1)
 
 	if is.components.Has(types.Controller) {
@@ -45,6 +47,6 @@ func (is identity) GetPluginCapabilities(ctx context.Context, req *csi.GetPlugin
 	}, nil
 }
 
-func (is identity) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+func (identity) Probe(_ context.Context, _ *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	return &csi.ProbeResponse{}, nil
 }

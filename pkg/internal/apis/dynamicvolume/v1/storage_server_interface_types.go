@@ -5,6 +5,7 @@ import (
 	corev1 "go.anx.io/go-anxcloud/pkg/apis/core/v1"
 )
 
+// StorageServerInterface is the network interface of a storage server serving dynamic volumes.
 type StorageServerInterface struct {
 	gs.GenericService
 	gs.HasState
@@ -13,9 +14,10 @@ type StorageServerInterface struct {
 	Name       string `json:"name,omitempty"`
 
 	IPAddress IPAddress       `json:"ip_address"`
-	Location  corev1.Location `json:"location,omitempty"`
+	Location  corev1.Location `json:"location"`
 }
 
+// IPAddress is the IP address assigned to a storage server interface.
 type IPAddress struct {
 	Identifier string `json:"identifier,omitempty"`
 	Name       string `json:"name,omitempty"`
