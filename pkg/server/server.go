@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -60,11 +61,9 @@ func New(opts Options) (Server, error) {
 	}, nil
 }
 
-// Run starts the main loop of the Server instance and loops itself, checking
-// if the server returned an error and stopping it when the given context is
-// cancelled.
-//
-// Call this method in a goroutine.
+// Run serves requests until the server fails or the given context is
+// cancelled. On cancellation the server is stopped gracefully and nil is
+// returned.
 func (s *server) Run(ctx context.Context) error {
 	klog.V(2).InfoS(
 		"Starting server",
@@ -72,20 +71,20 @@ func (s *server) Run(ctx context.Context) error {
 		"node-id", s.nodeID,
 	)
 
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	go func() {
 		ec <- s.server.Serve(s.listener)
 	}()
 
-	for {
-		select {
-		case err := <-ec:
-			if err != nil {
-				return err
-			}
-			return ctx.Err()
-		case <-ctx.Done():
-			s.server.Stop()
+	select {
+	case err := <-ec:
+		return err
+	case <-ctx.Done():
+		klog.V(2).InfoS("Shutting down server")
+		s.server.GracefulStop()
+		if err := <-ec; err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			return err
 		}
+		return nil
 	}
 }

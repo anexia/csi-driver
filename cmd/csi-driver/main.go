@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"os/signal"
+	"syscall"
 
 	"k8s.io/klog/v2"
 
@@ -23,8 +25,11 @@ func main() {
 	flag.Parse()                                      // Parse remaining flags (aka ours)
 	defer klog.FlushAndExit(klog.ExitFlushTimeout, 0) // Flush the logs on exit.
 
-	// Pass the default, now initialized klog logger, via the context.
-	ctx := klog.NewContext(context.Background(), klog.Background())
+	// Pass the default, now initialized klog logger, via the context and
+	// cancel it on SIGINT/SIGTERM to shut the server down gracefully.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	ctx = klog.NewContext(ctx, klog.Background())
 
 	err := driver.Run(ctx, components, *nodeID, *endpoint)
 	if err != nil {
