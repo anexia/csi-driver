@@ -53,10 +53,6 @@ func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 		return ErrNameNotProvided
 	}
 
-	if req.GetCapacityRange() == nil {
-		return ErrCapacityRangeNotProvided
-	}
-
 	if len(req.GetVolumeCapabilities()) == 0 {
 		return ErrVolumeCapabilitiesNotProvided
 	}
@@ -100,7 +96,7 @@ func checkValidateVolumeCapabilitiesRequest(req *csi.ValidateVolumeCapabilitiesR
 	return nil
 }
 
-func sizeFromCapacityRange(capacityRange *csi.CapacityRange) int64 {
+func sizeFromCapacityRange(capacityRange *csi.CapacityRange) (int64, error) {
 	size := defaultVolumeSize
 
 	// required bytes set? -> use value
@@ -113,19 +109,21 @@ func sizeFromCapacityRange(capacityRange *csi.CapacityRange) int64 {
 		size = capacityRange.GetLimitBytes()
 	}
 
-	// If we exceed the maximum, limit it to that.
 	if size > maxVolumeSize {
-		klog.V(0).Infof("The size request of %d bytes exceeds the maximum value (%d). Falling back to the maximum value.", size, maxVolumeSize)
-		size = maxVolumeSize
+		return 0, fmt.Errorf("%w: %d bytes exceed the maximum of %d bytes", ErrCapacityOutOfRange, size, maxVolumeSize)
 	}
 
-	return size
+	if size < capacityRange.GetRequiredBytes() {
+		return 0, fmt.Errorf("%w: limit of %d bytes is below the required %d bytes", ErrCapacityOutOfRange, capacityRange.GetLimitBytes(), capacityRange.GetRequiredBytes())
+	}
+
+	return size, nil
 }
 
-func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest) (*dynamicvolumev1.Volume, error) {
+func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest, size int64) (*dynamicvolumev1.Volume, error) {
 	volume := dynamicvolumev1.Volume{
 		Name:                    req.GetName(),
-		Size:                    sizeFromCapacityRange(req.GetCapacityRange()),
+		Size:                    size,
 		StorageServerInterfaces: &[]dynamicvolumev1.StorageServerInterface{{Identifier: req.GetParameters()["csi.anx.io/storage-server-identifier"]}},
 		ADSClass:                req.GetParameters()["csi.anx.io/ads-class"],
 	}
@@ -135,7 +133,7 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 		httpError := api.HTTPError{}
 		if errors.As(err, &httpError) && httpError.StatusCode() == http.StatusUnprocessableEntity {
 			klog.V(4).InfoS("Engine rejected volume creation, checking for existing volume with same name", "name", req.GetName())
-			return handleIdempotency(ctx, engine, req, err)
+			return handleIdempotency(ctx, engine, req, size, err)
 		}
 
 		return nil, fmt.Errorf("create volume: %w", err)
@@ -164,7 +162,7 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 // handleIdempotency is called when the engine rejected the create request. It looks up a volume with the
 // same name and returns it if it matches the request. When no such volume exists, the rejection was caused
 // by something else (invalid parameters, quota, ...) and createErr is surfaced to the caller.
-func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest, createErr error) (*dynamicvolumev1.Volume, error) {
+func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest, size int64, createErr error) (*dynamicvolumev1.Volume, error) {
 	klog.V(2).InfoS("Searching for existing volume with same name", "name", req.GetName())
 	original, err := findVolumeByName(ctx, engine, req.GetName())
 	if errors.Is(err, api.ErrNotFound) {
@@ -177,7 +175,7 @@ func handleIdempotency(ctx context.Context, engine types.API, req *csi.CreateVol
 	}
 
 	klog.V(4).InfoS("Existing volume found, comparing values", "name", req.GetName(), "engine_identifier", original.Identifier)
-	if original.Size != sizeFromCapacityRange(req.GetCapacityRange()) {
+	if original.Size != size {
 		klog.V(4).Info("A volume with the same name, but a different capacity range already exists at the Anexia Engine")
 		return nil, status.Error(codes.AlreadyExists, "volume with same name already exists")
 	}

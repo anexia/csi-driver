@@ -103,6 +103,14 @@ var _ = Describe("Controller Service", func() {
 			Expect(resp).To(BeNil())
 		})
 
+		It("returns an OutOfRange error when the capacity range cannot be satisfied", func() {
+			validRequest.CapacityRange = &csi.CapacityRange{RequiredBytes: maxVolumeSize + 1}
+
+			resp, err := cs.CreateVolume(context.TODO(), validRequest)
+			Expect(status.Code(err)).To(Equal(codes.OutOfRange))
+			Expect(resp).To(BeNil())
+		})
+
 		It("returns an error when the configured storage server couldn't be retrieved", func() {
 			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).Return(api.ErrNotFound)
 			resp, err := cs.CreateVolume(context.TODO(), validRequest)

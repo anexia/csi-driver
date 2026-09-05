@@ -56,6 +56,12 @@ var _ = Describe("Controller Service Utils", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
+		It("returns no error when no capacity range was provided", func() {
+			req.CapacityRange = nil
+			err := checkCreateVolumeRequest(req)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
 		It("returns an error when no volume name was provided", func() {
 			req.Name = ""
 			err := checkCreateVolumeRequest(req)
@@ -148,7 +154,7 @@ var _ = Describe("Controller Service Utils", func() {
 				return nil
 			})
 
-			volume, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+			volume, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(volume.Identifier).To(Equal("mocked-volume-identifier"))
@@ -157,7 +163,7 @@ var _ = Describe("Controller Service Utils", func() {
 		It("returns an error when api.Create wasn't successful", func() {
 			a.EXPECT().Create(gomock.Any(), &expectedVolumeCreate).Return(api.ErrNotFound)
 
-			volume, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+			volume, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 
 			Expect(err).To(MatchError(api.ErrNotFound))
 			Expect(volume).To(BeNil())
@@ -172,7 +178,7 @@ var _ = Describe("Controller Service Utils", func() {
 			// AwaitCompletion
 			a.EXPECT().Get(gomock.Any(), &expectedVolumeAfterCreate).Return(api.ErrNotFound)
 
-			_, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+			_, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 
 			Expect(err).To(MatchError(api.ErrNotFound))
 		})
@@ -191,7 +197,7 @@ var _ = Describe("Controller Service Utils", func() {
 
 			a.EXPECT().Destroy(gomock.Any(), &expectedVolumeAfterCreate).Times(1)
 
-			_, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+			_, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 
 			Expect(status.Convert(err).Message()).To(Equal("ADV volume went into error state, reprovisioning it"))
 		})
@@ -213,7 +219,7 @@ var _ = Describe("Controller Service Utils", func() {
 				return nil
 			})
 
-			v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+			v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 
 			Expect(v).To(BeNil())
 			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
@@ -253,8 +259,7 @@ var _ = Describe("Controller Service Utils", func() {
 			})
 
 			It("returns an error when a volume with the same name but different size already exists", func() {
-				req.CapacityRange = &csi.CapacityRange{RequiredBytes: 54321}
-				v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+				v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 54321)
 				Expect(status.Code(err)).To(Equal(codes.AlreadyExists))
 				Expect(v).To(BeNil())
 			})
@@ -267,7 +272,7 @@ var _ = Describe("Controller Service Utils", func() {
 					return nil
 				})
 
-				v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req)
+				v, err := createAnexiaDynamicVolumeFromRequest(context.TODO(), a, req, 12345)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(v).ToNot(BeNil())
 				Expect(v.Identifier).To(Equal("original"))
@@ -351,16 +356,26 @@ var _ = Describe("Controller Service Utils", func() {
 
 	Context("sizeFromCapacityRange", func() {
 		DescribeTable("sizeFromCapacityRange", func(capacityRange *csi.CapacityRange, expected int64) {
-			Expect(sizeFromCapacityRange(capacityRange)).To(Equal(expected))
+			size, err := sizeFromCapacityRange(capacityRange)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(size).To(Equal(expected))
 		},
 			Entry("zero value", &csi.CapacityRange{}, defaultVolumeSize),
 			Entry("nil value", nil, defaultVolumeSize),
 			Entry("limit bytes greater than default & required not set", &csi.CapacityRange{LimitBytes: 2 * defaultVolumeSize}, defaultVolumeSize),
 			Entry("limit bytes smaller than default & required not set", &csi.CapacityRange{LimitBytes: 10}, int64(10)),
 			Entry("required bytes set", &csi.CapacityRange{RequiredBytes: 20}, int64(20)),
-			// probably shouldn't ever happen...
-			Entry("required bytes greater than limit", &csi.CapacityRange{RequiredBytes: 20, LimitBytes: 10}, int64(10)),
-			Entry("max capacity exceeded", &csi.CapacityRange{RequiredBytes: maxVolumeSize + 1}, maxVolumeSize),
+			Entry("required bytes equal to limit", &csi.CapacityRange{RequiredBytes: 20, LimitBytes: 20}, int64(20)),
+			Entry("required bytes equal to max capacity", &csi.CapacityRange{RequiredBytes: maxVolumeSize}, maxVolumeSize),
+		)
+
+		DescribeTable("rejects ranges that cannot be satisfied", func(capacityRange *csi.CapacityRange) {
+			size, err := sizeFromCapacityRange(capacityRange)
+			Expect(err).To(MatchError(ErrCapacityOutOfRange))
+			Expect(size).To(BeZero())
+		},
+			Entry("required bytes greater than limit", &csi.CapacityRange{RequiredBytes: 20, LimitBytes: 10}),
+			Entry("required bytes greater than max capacity", &csi.CapacityRange{RequiredBytes: maxVolumeSize + 1}),
 		)
 	})
 })
