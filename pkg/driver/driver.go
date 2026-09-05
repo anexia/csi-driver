@@ -1,3 +1,4 @@
+// Package driver assembles the configured CSI components and runs the gRPC server.
 package driver
 
 import (

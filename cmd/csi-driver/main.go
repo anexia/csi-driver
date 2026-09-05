@@ -1,3 +1,4 @@
+// Command csi-driver is the entry point of the Anexia CSI driver.
 package main
 
 import (
