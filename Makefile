@@ -1,7 +1,7 @@
 csi-driver:
 	go build ./cmd/csi-driver
 
-test: hack
+test:
 	go run github.com/onsi/ginkgo/v2/ginkgo \
 		-p                                  \
 		-timeout 0                          \
