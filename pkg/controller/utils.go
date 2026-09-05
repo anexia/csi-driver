@@ -57,7 +57,7 @@ func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 		return ErrCapacityRangeNotProvided
 	}
 
-	if req.VolumeCapabilities == nil {
+	if len(req.VolumeCapabilities) == 0 {
 		return ErrVolumeCapabilitiesNotProvided
 	}
 
