@@ -91,6 +91,21 @@ func TestControllerExpandVolume(t *testing.T) {
 			t.Fatalf("Expected no response, got %#v", resp)
 		}
 	})
+	t.Run("capacity range that cannot be satisfied is rejected", func(t *testing.T) {
+		t.Parallel()
+		bundle := setup(t)
+
+		resp, err := bundle.controller.ControllerExpandVolume(context.TODO(), &csi.ControllerExpandVolumeRequest{
+			VolumeId:      "expand-volume",
+			CapacityRange: &csi.CapacityRange{RequiredBytes: maxVolumeSize + 1},
+		})
+		if status.Code(err) != codes.OutOfRange {
+			t.Fatalf("Expected OutOfRange, got %s: %v", status.Code(err), err)
+		}
+		if resp != nil {
+			t.Fatalf("Expected no response, got %#v", resp)
+		}
+	})
 	t.Run("waits until the expanded capacity is ready", func(t *testing.T) {
 		t.Parallel()
 		var (

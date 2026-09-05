@@ -33,6 +33,8 @@ Some examples, more below in the actual changelog (newer entries are more likely
 * Allow architecture-specific Alpine revisions of the `nfs-utils` package.
 * Ensure privileged sanity tests can access `make` and the configured Go toolchain.
 * Validate volume expansion requests, wait for asynchronous expansion, and retry temporarily blocked cleanup.
+* Return `OUT_OF_RANGE` from `CreateVolume` and `ControllerExpandVolume` when the requested capacity range cannot be satisfied, instead of silently provisioning a smaller volume.
+* Accept `CreateVolume` requests without a capacity range and fall back to the default volume size, as the CSI spec marks the field optional.
 
 ## [0.2.0] -- 2025-07-29
 
