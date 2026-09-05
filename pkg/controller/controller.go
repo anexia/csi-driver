@@ -54,6 +54,12 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		return nil, status.Errorf(codes.InvalidArgument, "request check failed: %s", err)
 	}
 
+	size, err := sizeFromCapacityRange(req.GetCapacityRange())
+	if err != nil {
+		klog.V(2).ErrorS(err, "Volume capacity range cannot be satisfied", "request", req)
+		return nil, status.Errorf(codes.OutOfRange, "%s", err)
+	}
+
 	klog.V(2).Info("Querying storage server interface from Anexia Engine")
 	storageServer, err := getDynamicStorageServer(ctx, cs.engine, req)
 	if err != nil {
@@ -61,7 +67,7 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		return nil, engineErrorToGRPC(err)
 	}
 
-	volume, err := createAnexiaDynamicVolumeFromRequest(ctx, cs.engine, req)
+	volume, err := createAnexiaDynamicVolumeFromRequest(ctx, cs.engine, req, size)
 	if err != nil {
 		klog.V(2).ErrorS(err, "Volume creation in Anexia Engine failed")
 		return nil, engineErrorToGRPC(err)

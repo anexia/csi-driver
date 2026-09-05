@@ -9,6 +9,8 @@ var (
 	ErrNameNotProvided = errors.New("name was not provided")
 	// ErrCapacityRangeNotProvided is returned if no capacity range was provided
 	ErrCapacityRangeNotProvided = errors.New("capacity range was not provided")
+	// ErrCapacityOutOfRange is returned if the requested capacity range cannot be satisfied
+	ErrCapacityOutOfRange = errors.New("requested capacity range cannot be satisfied")
 
 	// ErrVolumeCapabilitiesNotProvided is returned if volumes capabilities haven't been set
 	ErrVolumeCapabilitiesNotProvided = errors.New("volume capabilities not set")
