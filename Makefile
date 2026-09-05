@@ -24,4 +24,7 @@ fmt:
 fmtcheck:
 	@hack/gofmtcheck.sh
 
-.PHONY: csi-driver test test-sanity depscheck fmt
+go-lint:
+	golangci-lint run
+
+.PHONY: csi-driver test test-sanity depscheck fmt fmtcheck go-lint
