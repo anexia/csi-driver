@@ -299,7 +299,7 @@ func (cs *controller) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsho
 	}
 
 	snapshotRequest := &csi.CreateVolumeRequest{
-		Name: req.GetName(),
+		Name: snapshotBackingVolumeName(req.GetName()),
 		Parameters: map[string]string{
 			"csi.anx.io/storage-server-identifier": storageServerID,
 			"csi.anx.io/ads-class":                 adsClass,
@@ -318,7 +318,7 @@ func (cs *controller) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsho
 		return nil, status.Errorf(codes.Internal, "%s", err)
 	}
 
-	createdAt, copyErr := cs.snapshotDataManager().Create(ctx, source, snapshotVolume, newlyCreated)
+	createdAt, copyErr := cs.snapshotDataManager().Create(ctx, req.GetName(), source, snapshotVolume, newlyCreated)
 	if copyErr != nil {
 		if newlyCreated {
 			if cleanupErr := cs.engine.Destroy(ctx, snapshotVolume); cleanupErr != nil {

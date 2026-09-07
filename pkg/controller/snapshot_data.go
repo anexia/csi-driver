@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,7 +63,7 @@ func decodeSnapshotHandle(value string) (snapshotHandle, error) {
 }
 
 type snapshotDataManager interface {
-	Create(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
+	Create(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
 	Restore(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
 }
 
@@ -73,6 +75,7 @@ type directorySnapshotDataManager struct {
 
 type snapshotMetadata struct {
 	Version        int       `json:"version"`
+	SnapshotName   string    `json:"snapshot_name"`
 	SourceVolumeID string    `json:"source_volume_id"`
 	CreatedAt      time.Time `json:"created_at"`
 }
@@ -92,6 +95,7 @@ func newDirectorySnapshotDataManager(engine types.API) snapshotDataManager {
 
 func (m *directorySnapshotDataManager) Create(
 	ctx context.Context,
+	snapshotName string,
 	source *dynamicvolumev1.Volume,
 	snapshot *dynamicvolumev1.Volume,
 	newlyCreated bool,
@@ -110,7 +114,7 @@ func (m *directorySnapshotDataManager) Create(
 		if readErr := readJSON(metadataPath, &metadata); readErr != nil {
 			return time.Time{}, fmt.Errorf("read existing snapshot metadata: %w", readErr)
 		}
-		if metadata.Version != 1 || metadata.SourceVolumeID != source.Identifier {
+		if metadata.Version != 1 || metadata.SnapshotName != snapshotName || metadata.SourceVolumeID != source.Identifier {
 			return time.Time{}, errors.New("snapshot name is already used for a different source volume")
 		}
 		if metadata.CreatedAt.IsZero() {
@@ -144,6 +148,7 @@ func (m *directorySnapshotDataManager) Create(
 	createdAt := time.Now().UTC()
 	metadata := snapshotMetadata{
 		Version:        1,
+		SnapshotName:   snapshotName,
 		SourceVolumeID: source.Identifier,
 		CreatedAt:      createdAt,
 	}
@@ -152,6 +157,11 @@ func (m *directorySnapshotDataManager) Create(
 	}
 
 	return createdAt, nil
+}
+
+func snapshotBackingVolumeName(snapshotName string) string {
+	digest := sha256.Sum256([]byte(snapshotName))
+	return "csi-snapshot-" + hex.EncodeToString(digest[:16])
 }
 
 func (m *directorySnapshotDataManager) Restore(

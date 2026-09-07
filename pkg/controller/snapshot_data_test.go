@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,6 +35,15 @@ var _ = Describe("Directory snapshot data", func() {
 		decoded, err := decodeSnapshotHandle(encoded)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(decoded).To(Equal(expected))
+	})
+
+	It("derives a short deterministic backing volume name from a maximum-length CSI name", func() {
+		maximumLengthName := strings.Repeat("a", 128)
+		first := snapshotBackingVolumeName(maximumLengthName)
+
+		Expect(first).To(HaveLen(45))
+		Expect(first).To(Equal(snapshotBackingVolumeName(maximumLengthName)))
+		Expect(first).ToNot(Equal(snapshotBackingVolumeName(maximumLengthName + "different")))
 	})
 
 	DescribeTable("rejects invalid snapshot handles", func(value string) {
@@ -81,6 +91,7 @@ var _ = Describe("Directory snapshot data", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "metadata.json")
 		expected := snapshotMetadata{
 			Version:        1,
+			SnapshotName:   "snapshot-name",
 			SourceVolumeID: "source-volume",
 			CreatedAt:      time.Date(2026, time.September, 7, 10, 0, 0, 0, time.UTC),
 		}

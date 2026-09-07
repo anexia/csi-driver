@@ -19,17 +19,18 @@ import (
 )
 
 type fakeSnapshotDataManager struct {
-	create  func(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
+	create  func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
 	restore func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
 }
 
 func (m *fakeSnapshotDataManager) Create(
 	ctx context.Context,
+	snapshotName string,
 	source *dynamicvolumev1.Volume,
 	snapshot *dynamicvolumev1.Volume,
 	newlyCreated bool,
 ) (time.Time, error) {
-	return m.create(ctx, source, snapshot, newlyCreated)
+	return m.create(ctx, snapshotName, source, snapshot, newlyCreated)
 }
 
 func (m *fakeSnapshotDataManager) Restore(
@@ -243,7 +244,7 @@ var _ = Describe("Controller Service", func() {
 				return nil
 			})
 			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
-				Expect(volume.Name).To(Equal("snapshot-name"))
+				Expect(volume.Name).To(Equal(snapshotBackingVolumeName("snapshot-name")))
 				Expect(volume.Size).To(Equal(int64(12345)))
 				Expect(volume.ADSClass).To(Equal("ENT2"))
 				volume.Identifier = "snapshot-volume"
@@ -254,7 +255,8 @@ var _ = Describe("Controller Service", func() {
 				return nil
 			})
 			cs.snapshotData = &fakeSnapshotDataManager{
-				create: func(_ context.Context, actualSource, snapshot *dynamicvolumev1.Volume, newlyCreated bool) (time.Time, error) {
+				create: func(_ context.Context, snapshotName string, actualSource, snapshot *dynamicvolumev1.Volume, newlyCreated bool) (time.Time, error) {
+					Expect(snapshotName).To(Equal("snapshot-name"))
 					Expect(actualSource.Identifier).To(Equal("source-volume"))
 					Expect(snapshot.Identifier).To(Equal("snapshot-volume"))
 					Expect(newlyCreated).To(BeTrue())
@@ -297,7 +299,7 @@ var _ = Describe("Controller Service", func() {
 				return nil
 			})
 			cs.snapshotData = &fakeSnapshotDataManager{
-				create: func(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error) {
+				create: func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error) {
 					return time.Time{}, errors.New("copy failed")
 				},
 			}
