@@ -59,7 +59,7 @@ func (ns node) statfsFunc() func(path string) (unix.Statfs_t, error) {
 	return statfsUsage
 }
 
-func (ns node) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+func (ns node) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	klog.V(4).InfoS("Collecting volume stats", "id", req.GetVolumeId(), "path", req.GetVolumePath())
 
 	if err := checkNodeGetVolumeStatsRequest(req); err != nil {
@@ -96,7 +96,11 @@ func (ns node) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeSta
 		return nil, status.Errorf(codes.Internal, "error collecting volume stats: %s", err)
 	}
 
-	bytes, inodes := volumeStats(statfs)
+	bytes, inodes, err := volumeStats(statfs)
+	if err != nil {
+		klog.V(2).ErrorS(err, "Converting volume stats failed", "path", req.GetVolumePath())
+		return nil, status.Errorf(codes.Internal, "error converting volume stats: %s", err)
+	}
 
 	klog.V(4).InfoS("Volume stats collected successfully", "id", req.GetVolumeId())
 	return &csi.NodeGetVolumeStatsResponse{

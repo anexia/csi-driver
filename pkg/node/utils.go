@@ -1,6 +1,9 @@
 package node
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"golang.org/x/sys/unix"
 )
@@ -38,11 +41,11 @@ func checkNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error 
 }
 
 func checkNodeGetVolumeStatsRequest(req *csi.NodeGetVolumeStatsRequest) error {
-	if req.VolumeId == "" {
+	if req.GetVolumeId() == "" {
 		return ErrVolumeIDNotProvided
 	}
 
-	if req.VolumePath == "" {
+	if req.GetVolumePath() == "" {
 		return ErrVolumePathNotProvided
 	}
 
@@ -63,25 +66,91 @@ func statfsUsage(path string) (unix.Statfs_t, error) {
 // usable by unprivileged users (Bavail). On a filesystem that reserves blocks for root the two
 // therefore do not add up to Total, the difference being the unused part of that reserve. This is
 // the same accounting kubelet applies to other volume types.
-func volumeStats(statfs unix.Statfs_t) (bytes *csi.VolumeUsage, inodes *csi.VolumeUsage) {
+func volumeStats(statfs unix.Statfs_t) (*csi.VolumeUsage, *csi.VolumeUsage, error) {
 	// Bsize is an int64 on linux/amd64 and linux/arm64, but an int32 on 32-bit platforms
 	blockSize := int64(statfs.Bsize)
+	if blockSize < 0 {
+		return nil, nil, fmt.Errorf("invalid negative filesystem block size: %d", blockSize)
+	}
 
 	// A filesystem reporting more free blocks or inodes than it has in total would otherwise
 	// produce a negative used count, so the subtractions are clamped at zero
-	bytes = &csi.VolumeUsage{
+	usedBlocks := uint64(0)
+	if statfs.Blocks > statfs.Bfree {
+		usedBlocks = statfs.Blocks - statfs.Bfree
+	}
+
+	totalBytes, err := scaledStatfsValue(statfs.Blocks, blockSize)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate total bytes: %w", err)
+	}
+
+	availableBytes, err := scaledStatfsValue(statfs.Bavail, blockSize)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate available bytes: %w", err)
+	}
+
+	usedBytes, err := scaledStatfsValue(usedBlocks, blockSize)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate used bytes: %w", err)
+	}
+
+	bytes := &csi.VolumeUsage{
 		Unit:      csi.VolumeUsage_BYTES,
-		Total:     int64(statfs.Blocks) * blockSize,
-		Available: int64(statfs.Bavail) * blockSize,
-		Used:      max(int64(statfs.Blocks)-int64(statfs.Bfree), 0) * blockSize,
+		Total:     totalBytes,
+		Available: availableBytes,
+		Used:      usedBytes,
 	}
 
-	inodes = &csi.VolumeUsage{
+	usedInodes := uint64(0)
+	if statfs.Files > statfs.Ffree {
+		usedInodes = statfs.Files - statfs.Ffree
+	}
+
+	totalInodes, err := scaledStatfsValue(statfs.Files, 1)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate total inodes: %w", err)
+	}
+
+	availableInodes, err := scaledStatfsValue(statfs.Ffree, 1)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate available inodes: %w", err)
+	}
+
+	usedInodeCount, err := scaledStatfsValue(usedInodes, 1)
+	if err != nil {
+		return nil, nil, fmt.Errorf("calculate used inodes: %w", err)
+	}
+
+	inodes := &csi.VolumeUsage{
 		Unit:      csi.VolumeUsage_INODES,
-		Total:     int64(statfs.Files),
-		Available: int64(statfs.Ffree),
-		Used:      max(int64(statfs.Files)-int64(statfs.Ffree), 0),
+		Total:     totalInodes,
+		Available: availableInodes,
+		Used:      usedInodeCount,
 	}
 
-	return bytes, inodes
+	return bytes, inodes, nil
+}
+
+// scaledStatfsValue safely converts a filesystem counter to int64 and applies its multiplier.
+func scaledStatfsValue(value uint64, multiplier int64) (int64, error) {
+	if multiplier < 0 {
+		return 0, fmt.Errorf("multiplier must not be negative: %d", multiplier)
+	}
+
+	if multiplier == 0 {
+		return 0, nil
+	}
+
+	if value > math.MaxInt64 {
+		return 0, fmt.Errorf("value %d exceeds int64", value)
+	}
+
+	// The upper-bound check above makes this narrowing conversion safe.
+	converted := int64(value)
+	if converted > math.MaxInt64/multiplier {
+		return 0, fmt.Errorf("value %d multiplied by %d exceeds int64", value, multiplier)
+	}
+
+	return converted * multiplier, nil
 }
