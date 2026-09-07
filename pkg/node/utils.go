@@ -67,8 +67,7 @@ func statfsUsage(path string) (unix.Statfs_t, error) {
 // therefore do not add up to Total, the difference being the unused part of that reserve. This is
 // the same accounting kubelet applies to other volume types.
 func volumeStats(statfs unix.Statfs_t) (*csi.VolumeUsage, *csi.VolumeUsage, error) {
-	// Bsize is an int64 on linux/amd64 and linux/arm64, but an int32 on 32-bit platforms
-	blockSize := int64(statfs.Bsize)
+	blockSize := statfsBlockSize(statfs)
 	if blockSize < 0 {
 		return nil, nil, fmt.Errorf("invalid negative filesystem block size: %d", blockSize)
 	}
