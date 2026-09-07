@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -187,6 +188,22 @@ var _ = Describe("Node Service", func() {
 			_, err := n.NodeGetVolumeStats(context.TODO(), validRequest)
 
 			Expect(status.Code(err)).To(Equal(codes.Internal))
+		})
+
+		It("returns an Internal error when converting the stats overflows", func() {
+			n := &node{
+				mounter: mounter,
+				statfs: func(path string) (unix.Statfs_t, error) {
+					return unix.Statfs_t{Bsize: 2, Blocks: math.MaxInt64/2 + 1}, nil
+				},
+			}
+
+			_, err := n.NodeGetVolumeStats(context.TODO(), validRequest)
+
+			Expect(err).To(MatchError(
+				"rpc error: code = Internal desc = error converting volume stats: " +
+					"calculate total bytes: value 4611686018427387904 multiplied by 2 exceeds int64",
+			))
 		})
 	})
 

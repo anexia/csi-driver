@@ -1,6 +1,7 @@
 package node
 
 import (
+	"math"
 	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -113,7 +114,7 @@ var _ = Describe("Node Service Utils", func() {
 		// size. The blocks reserved for root count as neither used nor available, so
 		// Used and Available deliberately fall short of Total by that reserve.
 		It("converts filesystem statistics into byte and inode usage", func() {
-			bytes, inodes := volumeStats(unix.Statfs_t{
+			bytes, inodes, err := volumeStats(unix.Statfs_t{
 				Bsize:  4096,
 				Blocks: 1000,
 				Bfree:  400,
@@ -121,6 +122,7 @@ var _ = Describe("Node Service Utils", func() {
 				Files:  500,
 				Ffree:  120,
 			})
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(bytes).To(Equal(&csi.VolumeUsage{
 				Unit:      csi.VolumeUsage_BYTES,
@@ -141,13 +143,14 @@ var _ = Describe("Node Service Utils", func() {
 		// in total. Subtracting those unguarded yields a negative used count, which
 		// kubelet would publish as a nonsensical negative gauge, so it stays at zero.
 		It("does not report negative usage when more is free than exists", func() {
-			bytes, inodes := volumeStats(unix.Statfs_t{
+			bytes, inodes, err := volumeStats(unix.Statfs_t{
 				Bsize:  4096,
 				Blocks: 1,
 				Bfree:  2,
 				Files:  1,
 				Ffree:  2,
 			})
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(bytes.Used).To(BeZero())
 			Expect(inodes.Used).To(BeZero())
@@ -155,11 +158,24 @@ var _ = Describe("Node Service Utils", func() {
 
 		// A filesystem without inode accounting reports zeroes rather than real counts.
 		It("reports zero inode usage for filesystems without inode accounting", func() {
-			_, inodes := volumeStats(unix.Statfs_t{Bsize: 4096, Files: 0, Ffree: 0})
+			_, inodes, err := volumeStats(unix.Statfs_t{Bsize: 4096, Files: 0, Ffree: 0})
 
+			Expect(err).ToNot(HaveOccurred())
 			Expect(inodes.Total).To(BeZero())
 			Expect(inodes.Used).To(BeZero())
 			Expect(inodes.Available).To(BeZero())
+		})
+
+		It("returns an error when converting a block count would overflow", func() {
+			_, _, err := volumeStats(unix.Statfs_t{Bsize: 1, Blocks: math.MaxUint64})
+
+			Expect(err).To(MatchError("calculate total bytes: value 18446744073709551615 exceeds int64"))
+		})
+
+		It("returns an error when scaling a block count would overflow", func() {
+			_, _, err := volumeStats(unix.Statfs_t{Bsize: 2, Blocks: math.MaxInt64/2 + 1})
+
+			Expect(err).To(MatchError("calculate total bytes: value 4611686018427387904 multiplied by 2 exceeds int64"))
 		})
 
 		It("reads the statistics of a real path", func() {
