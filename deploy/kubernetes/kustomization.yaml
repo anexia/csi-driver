@@ -4,3 +4,4 @@ resources:
   - driver.yaml
   - rbac.yaml
   - class.yaml
+  - snapshotclass.yaml
