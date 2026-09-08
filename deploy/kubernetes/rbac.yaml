@@ -28,8 +28,12 @@ rules:
     verbs: ["get", "list", "watch"]
   # required by the external snapshotter sidecar
   - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotclasses", "volumesnapshots"]
+    resources: ["volumesnapshotclasses"]
     verbs: ["get", "list", "watch"]
+  # The provisioner updates the restore-source protection finalizer.
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents"]
     verbs: ["get", "list", "watch", "update", "patch"]
