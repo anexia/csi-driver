@@ -27,6 +27,8 @@ const (
 	restoreMetadataFile   = ".csi-anx-restore.json"
 )
 
+var errIncompatibleContentSource = errors.New("existing resource has an incompatible content source")
+
 type snapshotHandle struct {
 	BackingVolumeID string `json:"backing_volume_id"`
 	SourceVolumeID  string `json:"source_volume_id"`
@@ -78,11 +80,13 @@ type snapshotMetadata struct {
 	SnapshotName   string    `json:"snapshot_name"`
 	SourceVolumeID string    `json:"source_volume_id"`
 	CreatedAt      time.Time `json:"created_at"`
+	Complete       bool      `json:"complete"`
 }
 
 type restoreMetadata struct {
 	Version    int    `json:"version"`
 	SnapshotID string `json:"snapshot_id"`
+	Complete   bool   `json:"complete"`
 }
 
 func newDirectorySnapshotDataManager(engine types.API) snapshotDataManager {
@@ -109,19 +113,15 @@ func (m *directorySnapshotDataManager) Create(
 	}()
 
 	metadataPath := filepath.Join(snapshotMount.path, snapshotMetadataFile)
-	if !newlyCreated {
-		var metadata snapshotMetadata
-		if readErr := readJSON(metadataPath, &metadata); readErr != nil {
-			return time.Time{}, fmt.Errorf("read existing snapshot metadata: %w", readErr)
-		}
-		if metadata.Version != 1 || metadata.SnapshotName != snapshotName || metadata.SourceVolumeID != source.Identifier {
-			return time.Time{}, errors.New("snapshot name is already used for a different source volume")
-		}
-		if metadata.CreatedAt.IsZero() {
-			return time.Time{}, errors.New("existing snapshot has no creation time")
-		}
-
+	metadata, complete, err := snapshotMetadataForOperation(metadataPath, snapshotName, source.Identifier, newlyCreated)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if complete {
 		return metadata.CreatedAt, nil
+	}
+	if writeErr := writeJSON(metadataPath, metadata); writeErr != nil {
+		return time.Time{}, fmt.Errorf("write incomplete snapshot metadata: %w", writeErr)
 	}
 
 	sourceMount, err := m.mountVolume(ctx, source, true)
@@ -143,20 +143,19 @@ func (m *directorySnapshotDataManager) Create(
 	if err := copyDirectory(ctx, sourceMount.path, dataPath); err != nil {
 		return time.Time{}, fmt.Errorf("copy source volume into snapshot: %w", err)
 	}
+	// Restore metadata belongs to the CSI driver rather than the user's data.
+	// Do not propagate it when a restored volume is snapshotted again.
+	if err := os.RemoveAll(filepath.Join(dataPath, restoreMetadataFile)); err != nil {
+		return time.Time{}, fmt.Errorf("remove internal restore metadata from snapshot data: %w", err)
+	}
 	klog.V(2).InfoS("Finished copying volume data into directory snapshot", "source_volume_id", source.Identifier, "snapshot_volume_id", snapshot.Identifier)
 
-	createdAt := time.Now().UTC()
-	metadata := snapshotMetadata{
-		Version:        1,
-		SnapshotName:   snapshotName,
-		SourceVolumeID: source.Identifier,
-		CreatedAt:      createdAt,
-	}
+	metadata.Complete = true
 	if err := writeJSON(metadataPath, metadata); err != nil {
 		return time.Time{}, fmt.Errorf("write snapshot metadata: %w", err)
 	}
 
-	return createdAt, nil
+	return metadata.CreatedAt, nil
 }
 
 func snapshotBackingVolumeName(snapshotName string) string {
@@ -186,6 +185,9 @@ func (m *directorySnapshotDataManager) Restore(
 	if snapshotInfo.Version != 1 {
 		return fmt.Errorf("unsupported snapshot metadata version %d", snapshotInfo.Version)
 	}
+	if !snapshotInfo.Complete {
+		return errors.New("snapshot copy is incomplete")
+	}
 	handle, err := decodeSnapshotHandle(snapshotID)
 	if err != nil {
 		return err
@@ -203,31 +205,79 @@ func (m *directorySnapshotDataManager) Restore(
 	}()
 
 	restoreMetadataPath := filepath.Join(destinationMount.path, restoreMetadataFile)
-	if !newlyCreated {
-		var metadata restoreMetadata
-		if err := readJSON(restoreMetadataPath, &metadata); err != nil {
-			return fmt.Errorf("existing volume is not a completed restore: %w", err)
-		}
-		if metadata.Version != 1 || metadata.SnapshotID != snapshotID {
-			return errors.New("volume name is already used for a different content source")
-		}
-
+	metadata, complete, err := restoreMetadataForOperation(restoreMetadataPath, snapshotID, newlyCreated)
+	if err != nil {
+		return err
+	}
+	if complete {
 		return nil
 	}
 
 	if err := clearDirectory(destinationMount.path, m.workingDir); err != nil {
 		return fmt.Errorf("clear destination volume: %w", err)
 	}
+	if err := writeJSON(restoreMetadataPath, metadata); err != nil {
+		return fmt.Errorf("write incomplete restore metadata: %w", err)
+	}
 	klog.V(2).InfoS("Restoring directory snapshot into volume", "snapshot_volume_id", snapshot.Identifier, "destination_volume_id", destination.Identifier)
 	if err := copyDirectory(ctx, filepath.Join(snapshotMount.path, snapshotDataDirectory), destinationMount.path); err != nil {
 		return fmt.Errorf("copy snapshot into destination volume: %w", err)
 	}
 	klog.V(2).InfoS("Finished restoring directory snapshot into volume", "snapshot_volume_id", snapshot.Identifier, "destination_volume_id", destination.Identifier)
-	if err := writeJSON(restoreMetadataPath, restoreMetadata{Version: 1, SnapshotID: snapshotID}); err != nil {
+	metadata.Complete = true
+	if err := writeJSON(restoreMetadataPath, metadata); err != nil {
 		return fmt.Errorf("write restore metadata: %w", err)
 	}
 
 	return nil
+}
+
+func snapshotMetadataForOperation(path, snapshotName, sourceVolumeID string, newlyCreated bool) (snapshotMetadata, bool, error) {
+	metadata := snapshotMetadata{
+		Version:        1,
+		SnapshotName:   snapshotName,
+		SourceVolumeID: sourceVolumeID,
+		CreatedAt:      time.Now().UTC(),
+	}
+	if newlyCreated {
+		return metadata, false, nil
+	}
+
+	readErr := readJSON(path, &metadata)
+	if os.IsNotExist(readErr) {
+		return metadata, false, nil
+	}
+	if readErr != nil {
+		return snapshotMetadata{}, false, fmt.Errorf("read existing snapshot metadata: %w", readErr)
+	}
+	if metadata.Version != 1 || metadata.SnapshotName != snapshotName || metadata.SourceVolumeID != sourceVolumeID {
+		return snapshotMetadata{}, false, fmt.Errorf("%w: snapshot name is already used for a different source volume", errIncompatibleContentSource)
+	}
+	if metadata.CreatedAt.IsZero() {
+		return snapshotMetadata{}, false, errors.New("existing snapshot has no creation time")
+	}
+
+	return metadata, metadata.Complete, nil
+}
+
+func restoreMetadataForOperation(path, snapshotID string, newlyCreated bool) (restoreMetadata, bool, error) {
+	metadata := restoreMetadata{Version: 1, SnapshotID: snapshotID}
+	if newlyCreated {
+		return metadata, false, nil
+	}
+
+	readErr := readJSON(path, &metadata)
+	if os.IsNotExist(readErr) {
+		return metadata, false, nil
+	}
+	if readErr != nil {
+		return restoreMetadata{}, false, fmt.Errorf("read existing restore metadata: %w", readErr)
+	}
+	if metadata.Version != 1 || metadata.SnapshotID != snapshotID {
+		return restoreMetadata{}, false, fmt.Errorf("%w: volume name is already used for a different snapshot", errIncompatibleContentSource)
+	}
+
+	return metadata, metadata.Complete, nil
 }
 
 type mountedVolume struct {

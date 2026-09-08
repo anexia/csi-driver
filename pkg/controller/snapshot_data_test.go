@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,5 +101,56 @@ var _ = Describe("Directory snapshot data", func() {
 		var actual snapshotMetadata
 		Expect(readJSON(path, &actual)).To(Succeed())
 		Expect(actual).To(Equal(expected))
+	})
+
+	It("recovers an existing snapshot when completion metadata is missing or incomplete", func() {
+		metadataPath := filepath.Join(GinkgoT().TempDir(), snapshotMetadataFile)
+
+		missing, complete, err := snapshotMetadataForOperation(metadataPath, "snapshot-name", "source-volume", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeFalse())
+		Expect(missing.SnapshotName).To(Equal("snapshot-name"))
+		Expect(missing.SourceVolumeID).To(Equal("source-volume"))
+
+		Expect(writeJSON(metadataPath, missing)).To(Succeed())
+		incomplete, complete, err := snapshotMetadataForOperation(metadataPath, "snapshot-name", "source-volume", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeFalse())
+		Expect(incomplete.CreatedAt).To(Equal(missing.CreatedAt))
+
+		incomplete.Complete = true
+		Expect(writeJSON(metadataPath, incomplete)).To(Succeed())
+		_, complete, err = snapshotMetadataForOperation(metadataPath, "snapshot-name", "source-volume", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeTrue())
+	})
+
+	It("recovers an existing restore when completion metadata is missing or incomplete", func() {
+		metadataPath := filepath.Join(GinkgoT().TempDir(), restoreMetadataFile)
+
+		missing, complete, err := restoreMetadataForOperation(metadataPath, "snapshot-id", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeFalse())
+		Expect(missing.SnapshotID).To(Equal("snapshot-id"))
+
+		Expect(writeJSON(metadataPath, missing)).To(Succeed())
+		incomplete, complete, err := restoreMetadataForOperation(metadataPath, "snapshot-id", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeFalse())
+
+		incomplete.Complete = true
+		Expect(writeJSON(metadataPath, incomplete)).To(Succeed())
+		_, complete, err = restoreMetadataForOperation(metadataPath, "snapshot-id", false)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(complete).To(BeTrue())
+	})
+
+	It("rejects incompatible metadata instead of recovering it", func() {
+		metadataPath := filepath.Join(GinkgoT().TempDir(), restoreMetadataFile)
+		Expect(writeJSON(metadataPath, restoreMetadata{Version: 1, SnapshotID: "other-snapshot"})).To(Succeed())
+
+		_, _, err := restoreMetadataForOperation(metadataPath, "snapshot-id", false)
+		Expect(err).To(MatchError(ContainSubstring("incompatible content source")))
+		Expect(errors.Is(err, errIncompatibleContentSource)).To(BeTrue())
 	})
 })

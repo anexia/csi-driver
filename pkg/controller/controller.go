@@ -29,6 +29,7 @@ const (
 	maxVolumeSize                    int64         = 10 * 1024 * oneGibibyteInBytes // Maximum volume size (= 10TiB)
 	defaultVolumeDeleteRetryInterval time.Duration = 5 * time.Second
 	defaultVolumeDeleteMaxAttempts                 = 13
+	failedOperationCleanupTimeout    time.Duration = 2 * time.Minute
 )
 
 type controller struct {
@@ -127,13 +128,16 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		restoreErr := cs.snapshotDataManager().Restore(ctx, snapshotID, snapshotVolume, volume, newlyCreated)
 		if restoreErr != nil {
 			if newlyCreated {
-				if cleanupErr := cs.engine.Destroy(ctx, volume); cleanupErr != nil {
-					klog.ErrorS(cleanupErr, "Failed to remove volume after snapshot restore failed", "id", volume.Identifier)
-				}
-				return nil, status.Errorf(codes.Internal, "restore volume from snapshot: %s", restoreErr)
+				cs.cleanupFailedVolume(ctx, volume.Identifier, "snapshot restore")
+			}
+			if ctx.Err() != nil {
+				return nil, status.FromContextError(ctx.Err()).Err()
+			}
+			if errors.Is(restoreErr, errIncompatibleContentSource) {
+				return nil, status.Errorf(codes.AlreadyExists, "existing volume is incompatible with requested snapshot: %s", restoreErr)
 			}
 
-			return nil, status.Errorf(codes.AlreadyExists, "existing volume is incompatible with requested snapshot: %s", restoreErr)
+			return nil, status.Errorf(codes.Internal, "restore volume from snapshot: %s", restoreErr)
 		}
 	}
 
@@ -191,6 +195,15 @@ func (cs *controller) deleteDynamicVolume(ctx context.Context, identifier string
 			return status.FromContextError(ctx.Err()).Err()
 		case <-timer.C:
 		}
+	}
+}
+
+func (cs *controller) cleanupFailedVolume(ctx context.Context, identifier, operation string) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), failedOperationCleanupTimeout)
+	defer cancel()
+
+	if err := cs.deleteDynamicVolume(cleanupCtx, identifier); err != nil {
+		klog.ErrorS(err, "Failed to remove volume after operation failed", "id", identifier, "operation", operation)
 	}
 }
 
@@ -321,13 +334,16 @@ func (cs *controller) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsho
 	createdAt, copyErr := cs.snapshotDataManager().Create(ctx, req.GetName(), source, snapshotVolume, newlyCreated)
 	if copyErr != nil {
 		if newlyCreated {
-			if cleanupErr := cs.engine.Destroy(ctx, snapshotVolume); cleanupErr != nil {
-				klog.ErrorS(cleanupErr, "Failed to remove backing volume after snapshot copy failed", "id", snapshotVolume.Identifier)
-			}
-			return nil, status.Errorf(codes.Internal, "copy snapshot data: %s", copyErr)
+			cs.cleanupFailedVolume(ctx, snapshotVolume.Identifier, "snapshot copy")
+		}
+		if ctx.Err() != nil {
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
+		if errors.Is(copyErr, errIncompatibleContentSource) {
+			return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name is incompatible: %s", copyErr)
 		}
 
-		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name is incompatible: %s", copyErr)
+		return nil, status.Errorf(codes.Internal, "copy snapshot data: %s", copyErr)
 	}
 
 	return &csi.CreateSnapshotResponse{

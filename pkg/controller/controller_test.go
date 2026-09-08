@@ -231,6 +231,56 @@ var _ = Describe("Controller Service", func() {
 			Expect(status.Code(err)).To(Equal(codes.OutOfRange))
 			Expect(response).To(BeNil())
 		})
+
+		It("cleans up a timed-out restore with an independent bounded context", func() {
+			requestContext, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
+			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
+				BackingVolumeID: "snapshot-volume",
+				SourceVolumeID:  "source-volume",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Snapshot{
+					Snapshot: &csi.VolumeContentSource_SnapshotSource{SnapshotId: snapshotID},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "snapshot-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "restored-volume"
+				volume.Path = "/restored"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+			engine.EXPECT().Destroy(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "restored-volume"}).DoAndReturn(func(cleanupContext context.Context, _ *dynamicvolumev1.Volume, _ ...any) error {
+				Expect(cleanupContext.Err()).ToNot(HaveOccurred())
+				_, hasDeadline := cleanupContext.Deadline()
+				Expect(hasDeadline).To(BeTrue())
+				return nil
+			})
+			cs.snapshotData = &fakeSnapshotDataManager{
+				restore: func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error {
+					cancelRequest()
+					return errors.New("copy timed out")
+				},
+			}
+
+			response, err := cs.CreateVolume(requestContext, validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.Canceled))
+			Expect(response).To(BeNil())
+		})
 	})
 
 	Context("Snapshots", func() {
@@ -280,6 +330,9 @@ var _ = Describe("Controller Service", func() {
 		})
 
 		It("removes a newly created backing volume when copying fails", func() {
+			requestContext, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
+
 			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
 				volume.Size = 12345
 				volume.ADSClass = "ENT2"
@@ -294,22 +347,26 @@ var _ = Describe("Controller Service", func() {
 				volume.State.Type = gs.StateTypeOK
 				return nil
 			})
-			engine.EXPECT().Destroy(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+			engine.EXPECT().Destroy(gomock.Any(), gomock.Any()).DoAndReturn(func(cleanupContext context.Context, volume *dynamicvolumev1.Volume, _ ...any) error {
 				Expect(volume.Identifier).To(Equal("snapshot-volume"))
+				Expect(cleanupContext.Err()).ToNot(HaveOccurred())
+				_, hasDeadline := cleanupContext.Deadline()
+				Expect(hasDeadline).To(BeTrue())
 				return nil
 			})
 			cs.snapshotData = &fakeSnapshotDataManager{
 				create: func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error) {
+					cancelRequest()
 					return time.Time{}, errors.New("copy failed")
 				},
 			}
 
-			response, err := cs.CreateSnapshot(context.Background(), &csi.CreateSnapshotRequest{
+			response, err := cs.CreateSnapshot(requestContext, &csi.CreateSnapshotRequest{
 				Name:           "snapshot-name",
 				SourceVolumeId: "source-volume",
 			})
 
-			Expect(status.Code(err)).To(Equal(codes.Internal))
+			Expect(status.Code(err)).To(Equal(codes.Canceled))
 			Expect(response).To(BeNil())
 		})
 
