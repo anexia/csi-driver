@@ -145,6 +145,11 @@ jobs:
             type=semver,pattern={{major}}
             type=sha
 
+      - name: Verify snapshot copier in runtime image
+        run: |
+          docker build --target runtime-test -t csi-driver-runtime-test .
+          docker run --rm --tmpfs /tmp:rw,size=32m csi-driver-runtime-test
+
       - name: Build Docker Image
         uses: docker/build-push-action@v7
         id:   docker_build
@@ -164,4 +169,3 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           trivyignores: .trivyignore
-

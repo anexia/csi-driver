@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -57,6 +58,9 @@ var _ = Describe("Directory snapshot data", func() {
 	)
 
 	It("recursively copies a directory while preserving symlinks", func() {
+		if runtime.GOOS != "linux" {
+			Skip("requires the Linux runtime's GNU cp; covered by the runtime image test")
+		}
 		source := GinkgoT().TempDir()
 		destination := GinkgoT().TempDir()
 		Expect(os.Mkdir(filepath.Join(source, "nested"), 0o750)).To(Succeed())

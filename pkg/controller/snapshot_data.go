@@ -342,10 +342,14 @@ func copyDirectory(ctx context.Context, source, destination string) error {
 	// The paths are private mount points made with os.MkdirTemp, and exec does
 	// not invoke a shell, so neither path can inject command syntax.
 	// #nosec G204
-	command := exec.CommandContext(ctx, "cp", "-a", source+string(filepath.Separator)+".", destination)
+	// GNU cp preserves ACLs through mode preservation. List xattr explicitly:
+	// --archive/--preserve=all alone can suppress attribute preservation errors.
+	command := exec.CommandContext(ctx, "cp", "--recursive", "--no-dereference",
+		"--preserve=mode,ownership,timestamps,links,xattr", "--sparse=always", "--",
+		source+string(filepath.Separator)+".", destination)
 	output, err := command.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("cp -a: %w: %s", err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("copy directory preserving metadata and sparse files: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	return nil
