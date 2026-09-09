@@ -27,6 +27,6 @@ ENTRYPOINT ["/csi-driver"]
 # Test the production copier without installing tools that could replace it.
 FROM runtime AS runtime-test
 COPY --from=runtime-test-builder /controller.test /controller.test
-ENTRYPOINT ["/controller.test", "-test.v", "-ginkgo.focus=runtime image copier"]
+ENTRYPOINT ["/controller.test", "-test.v", "-ginkgo.v", "-ginkgo.no-color", "-ginkgo.focus=runtime image copier"]
 
 FROM runtime AS final

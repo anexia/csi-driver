@@ -89,6 +89,28 @@ type restoreMetadata struct {
 	Complete   bool   `json:"complete"`
 }
 
+// Version 1 originally wrote metadata only after completing a copy. An absent
+// complete field therefore means success, not an interrupted operation.
+func (m *snapshotMetadata) UnmarshalJSON(data []byte) error {
+	type plain snapshotMetadata
+	decoded := plain{Complete: true}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = snapshotMetadata(decoded)
+	return nil
+}
+
+func (m *restoreMetadata) UnmarshalJSON(data []byte) error {
+	type plain restoreMetadata
+	decoded := plain{Complete: true}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = restoreMetadata(decoded)
+	return nil
+}
+
 func newDirectorySnapshotDataManager(engine types.API) snapshotDataManager {
 	return &directorySnapshotDataManager{
 		engine:     engine,
@@ -120,7 +142,7 @@ func (m *directorySnapshotDataManager) Create(
 	if complete {
 		return metadata.CreatedAt, nil
 	}
-	if writeErr := writeJSON(metadataPath, metadata); writeErr != nil {
+	if writeErr := writeMissingOperationMetadata(metadataPath, metadata); writeErr != nil {
 		return time.Time{}, fmt.Errorf("write incomplete snapshot metadata: %w", writeErr)
 	}
 
@@ -213,11 +235,11 @@ func (m *directorySnapshotDataManager) Restore(
 		return nil
 	}
 
+	if err := writeMissingOperationMetadata(restoreMetadataPath, metadata); err != nil {
+		return fmt.Errorf("write incomplete restore metadata: %w", err)
+	}
 	if err := clearDirectory(destinationMount.path, m.workingDir); err != nil {
 		return fmt.Errorf("clear destination volume: %w", err)
-	}
-	if err := writeJSON(restoreMetadataPath, metadata); err != nil {
-		return fmt.Errorf("write incomplete restore metadata: %w", err)
 	}
 	klog.V(2).InfoS("Restoring directory snapshot into volume", "snapshot_volume_id", snapshot.Identifier, "destination_volume_id", destination.Identifier)
 	if err := copyDirectory(ctx, filepath.Join(snapshotMount.path, snapshotDataDirectory), destinationMount.path); err != nil {
@@ -245,7 +267,7 @@ func snapshotMetadataForOperation(path, snapshotName, sourceVolumeID string, new
 
 	readErr := readJSON(path, &metadata)
 	if os.IsNotExist(readErr) {
-		return metadata, false, nil
+		return metadata, false, requireEmptyUnmarkedVolume(path)
 	}
 	if readErr != nil {
 		return snapshotMetadata{}, false, fmt.Errorf("read existing snapshot metadata: %w", readErr)
@@ -268,7 +290,7 @@ func restoreMetadataForOperation(path, snapshotID string, newlyCreated bool) (re
 
 	readErr := readJSON(path, &metadata)
 	if os.IsNotExist(readErr) {
-		return metadata, false, nil
+		return metadata, false, requireEmptyUnmarkedVolume(path)
 	}
 	if readErr != nil {
 		return restoreMetadata{}, false, fmt.Errorf("read existing restore metadata: %w", readErr)
@@ -278,6 +300,29 @@ func restoreMetadataForOperation(path, snapshotID string, newlyCreated bool) (re
 	}
 
 	return metadata, metadata.Complete, nil
+}
+
+func requireEmptyUnmarkedVolume(metadataPath string) error {
+	entries, err := os.ReadDir(filepath.Dir(metadataPath))
+	if err != nil {
+		return fmt.Errorf("inspect unmarked volume: %w", err)
+	}
+	if len(entries) != 0 {
+		return fmt.Errorf("%w: refusing to overwrite a non-empty volume without operation metadata", errIncompatibleContentSource)
+	}
+	return nil
+}
+
+// Existing metadata has already been validated by the operation helper. Keep
+// that intent intact: after ENOSPC there may be no room to rewrite it until the
+// partial copy has been removed. New operations record intent before copying.
+func writeMissingOperationMetadata(path string, metadata any) error {
+	if _, err := os.Lstat(path); os.IsNotExist(err) {
+		return writeJSON(path, metadata)
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
 
 type mountedVolume struct {
@@ -368,6 +413,9 @@ func clearDirectory(path, allowedRoot string) error {
 		return err
 	}
 	for _, entry := range entries {
+		if entry.Name() == restoreMetadataFile {
+			continue
+		}
 		if err := os.RemoveAll(filepath.Join(cleanPath, entry.Name())); err != nil {
 			return err
 		}

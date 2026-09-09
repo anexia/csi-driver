@@ -209,7 +209,8 @@ var _ = Describe("Controller Service", func() {
 			Expect(response.Volume.ContentSource).To(Equal(validRequest.VolumeContentSource))
 		})
 
-		It("rejects a restore when the destination is smaller than the snapshot", func() {
+		DescribeTable("rejects an undersized restore before allocating or copying", func(capacity *csi.CapacityRange) {
+			validRequest.CapacityRange = capacity
 			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
 				BackingVolumeID: "snapshot-volume",
 				SourceVolumeID:  "source-volume",
@@ -230,7 +231,11 @@ var _ = Describe("Controller Service", func() {
 
 			Expect(status.Code(err)).To(Equal(codes.OutOfRange))
 			Expect(response).To(BeNil())
-		})
+		},
+			Entry("requested size below the snapshot", &csi.CapacityRange{RequiredBytes: 12345}),
+			Entry("explicit limit below the snapshot", &csi.CapacityRange{RequiredBytes: 12345, LimitBytes: 12345}),
+			Entry("limit-only request below the snapshot", &csi.CapacityRange{LimitBytes: 12345}),
+		)
 
 		It("cleans up a timed-out restore with an independent bounded context", func() {
 			requestContext, cancelRequest := context.WithCancel(context.Background())

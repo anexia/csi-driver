@@ -2,6 +2,7 @@ csi-driver:
 	go build ./cmd/csi-driver
 
 test:
+	go test -race ./deploy/...
 	go run github.com/onsi/ginkgo/v2/ginkgo \
 		-p                                  \
 		-timeout 0                          \
@@ -15,6 +16,14 @@ test:
 test-sanity: csi-driver
 	tests/sanity/run.sh
 
+test-sanity-recovery:
+	go test -race ./deploy/...
+	go test -race ./pkg/controller -ginkgo.focus='Snapshot recovery sanity|undersized restore|independent bounded context'
+
+test-snapshot-runtime:
+	docker build --target runtime-test -t csi-driver-runtime-test .
+	docker run --rm --tmpfs /tmp:rw,size=32m csi-driver-runtime-test
+
 depscheck:
 	@hack/godepscheck.sh
 
@@ -27,4 +36,4 @@ fmtcheck:
 go-lint:
 	golangci-lint run
 
-.PHONY: csi-driver test test-sanity depscheck fmt fmtcheck go-lint
+.PHONY: csi-driver test test-sanity test-sanity-recovery test-snapshot-runtime depscheck fmt fmtcheck go-lint
