@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
@@ -16,6 +17,31 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+type fakeSnapshotDataManager struct {
+	create  func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
+	restore func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
+}
+
+func (m *fakeSnapshotDataManager) Create(
+	ctx context.Context,
+	snapshotName string,
+	source *dynamicvolumev1.Volume,
+	snapshot *dynamicvolumev1.Volume,
+	newlyCreated bool,
+) (time.Time, error) {
+	return m.create(ctx, snapshotName, source, snapshot, newlyCreated)
+}
+
+func (m *fakeSnapshotDataManager) Restore(
+	ctx context.Context,
+	snapshotID string,
+	snapshot *dynamicvolumev1.Volume,
+	destination *dynamicvolumev1.Volume,
+	newlyCreated bool,
+) error {
+	return m.restore(ctx, snapshotID, snapshot, destination, newlyCreated)
+}
 
 var _ = Describe("Controller Service", func() {
 	var (
@@ -133,6 +159,248 @@ var _ = Describe("Controller Service", func() {
 
 			Expect(status.Code(err)).To(Equal(codes.Internal))
 			Expect(resp).To(BeNil())
+		})
+
+		It("restores a newly created volume from a snapshot", func() {
+			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
+				BackingVolumeID: "snapshot-volume",
+				SourceVolumeID:  "source-volume",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Snapshot{
+					Snapshot: &csi.VolumeContentSource_SnapshotSource{SnapshotId: snapshotID},
+				},
+			}
+
+			snapshot := &dynamicvolumev1.Volume{Identifier: "snapshot-volume"}
+			engine.EXPECT().Get(gomock.Any(), snapshot).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "restored-volume"
+				volume.Path = "/restored"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+
+			cs.snapshotData = &fakeSnapshotDataManager{
+				restore: func(_ context.Context, actualSnapshotID string, actualSnapshot, destination *dynamicvolumev1.Volume, newlyCreated bool) error {
+					Expect(actualSnapshotID).To(Equal(snapshotID))
+					Expect(actualSnapshot.Identifier).To(Equal("snapshot-volume"))
+					Expect(destination.Identifier).To(Equal("restored-volume"))
+					Expect(newlyCreated).To(BeTrue())
+					return nil
+				},
+			}
+
+			response, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.Volume.VolumeId).To(Equal("restored-volume"))
+			Expect(response.Volume.ContentSource).To(Equal(validRequest.VolumeContentSource))
+		})
+
+		DescribeTable("rejects an undersized restore before allocating or copying", func(capacity *csi.CapacityRange) {
+			validRequest.CapacityRange = capacity
+			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
+				BackingVolumeID: "snapshot-volume",
+				SourceVolumeID:  "source-volume",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Snapshot{
+					Snapshot: &csi.VolumeContentSource_SnapshotSource{SnapshotId: snapshotID},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "snapshot-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12346
+				return nil
+			})
+
+			response, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.OutOfRange))
+			Expect(response).To(BeNil())
+		},
+			Entry("requested size below the snapshot", &csi.CapacityRange{RequiredBytes: 12345}),
+			Entry("explicit limit below the snapshot", &csi.CapacityRange{RequiredBytes: 12345, LimitBytes: 12345}),
+			Entry("limit-only request below the snapshot", &csi.CapacityRange{LimitBytes: 12345}),
+		)
+
+		It("cleans up a timed-out restore with an independent bounded context", func() {
+			requestContext, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
+			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
+				BackingVolumeID: "snapshot-volume",
+				SourceVolumeID:  "source-volume",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Snapshot{
+					Snapshot: &csi.VolumeContentSource_SnapshotSource{SnapshotId: snapshotID},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "snapshot-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "restored-volume"
+				volume.Path = "/restored"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+			engine.EXPECT().Destroy(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "restored-volume"}).DoAndReturn(func(cleanupContext context.Context, _ *dynamicvolumev1.Volume, _ ...any) error {
+				Expect(cleanupContext.Err()).ToNot(HaveOccurred())
+				_, hasDeadline := cleanupContext.Deadline()
+				Expect(hasDeadline).To(BeTrue())
+				return nil
+			})
+			cs.snapshotData = &fakeSnapshotDataManager{
+				restore: func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error {
+					cancelRequest()
+					return errors.New("copy timed out")
+				},
+			}
+
+			response, err := cs.CreateVolume(requestContext, validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.Canceled))
+			Expect(response).To(BeNil())
+		})
+	})
+
+	Context("Snapshots", func() {
+		It("creates a directory-copy snapshot in a backing ADV volume", func() {
+			createdAt := time.Date(2026, time.September, 7, 10, 0, 0, 0, time.UTC)
+			source := &dynamicvolumev1.Volume{Identifier: "source-volume"}
+			engine.EXPECT().Get(gomock.Any(), source).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12345
+				volume.ADSClass = "ENT2"
+				volume.StorageServerInterfaces = &[]dynamicvolumev1.StorageServerInterface{{Identifier: "storage-server"}}
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				Expect(volume.Name).To(Equal(snapshotBackingVolumeName("snapshot-name")))
+				Expect(volume.Size).To(Equal(int64(12345)))
+				Expect(volume.ADSClass).To(Equal("ENT2"))
+				volume.Identifier = "snapshot-volume"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+			cs.snapshotData = &fakeSnapshotDataManager{
+				create: func(_ context.Context, snapshotName string, actualSource, snapshot *dynamicvolumev1.Volume, newlyCreated bool) (time.Time, error) {
+					Expect(snapshotName).To(Equal("snapshot-name"))
+					Expect(actualSource.Identifier).To(Equal("source-volume"))
+					Expect(snapshot.Identifier).To(Equal("snapshot-volume"))
+					Expect(newlyCreated).To(BeTrue())
+					return createdAt, nil
+				},
+			}
+
+			response, err := cs.CreateSnapshot(context.Background(), &csi.CreateSnapshotRequest{
+				Name:           "snapshot-name",
+				SourceVolumeId: "source-volume",
+			})
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.Snapshot.ReadyToUse).To(BeTrue())
+			Expect(response.Snapshot.SizeBytes).To(Equal(int64(12345)))
+			Expect(response.Snapshot.SourceVolumeId).To(Equal("source-volume"))
+			Expect(response.Snapshot.CreationTime.AsTime()).To(Equal(createdAt))
+			handle, err := decodeSnapshotHandle(response.Snapshot.SnapshotId)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(handle).To(Equal(snapshotHandle{BackingVolumeID: "snapshot-volume", SourceVolumeID: "source-volume"}))
+		})
+
+		It("removes a newly created backing volume when copying fails", func() {
+			requestContext, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12345
+				volume.ADSClass = "ENT2"
+				volume.StorageServerInterfaces = &[]dynamicvolumev1.StorageServerInterface{{Identifier: "storage-server"}}
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "snapshot-volume"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+			engine.EXPECT().Destroy(gomock.Any(), gomock.Any()).DoAndReturn(func(cleanupContext context.Context, volume *dynamicvolumev1.Volume, _ ...any) error {
+				Expect(volume.Identifier).To(Equal("snapshot-volume"))
+				Expect(cleanupContext.Err()).ToNot(HaveOccurred())
+				_, hasDeadline := cleanupContext.Deadline()
+				Expect(hasDeadline).To(BeTrue())
+				return nil
+			})
+			cs.snapshotData = &fakeSnapshotDataManager{
+				create: func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error) {
+					cancelRequest()
+					return time.Time{}, errors.New("copy failed")
+				},
+			}
+
+			response, err := cs.CreateSnapshot(requestContext, &csi.CreateSnapshotRequest{
+				Name:           "snapshot-name",
+				SourceVolumeId: "source-volume",
+			})
+
+			Expect(status.Code(err)).To(Equal(codes.Canceled))
+			Expect(response).To(BeNil())
+		})
+
+		It("deletes the backing volume from an opaque snapshot handle", func() {
+			snapshotID, err := encodeSnapshotHandle(snapshotHandle{
+				BackingVolumeID: "snapshot-volume",
+				SourceVolumeID:  "source-volume",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			engine.EXPECT().Destroy(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "snapshot-volume"})
+
+			response, err := cs.DeleteSnapshot(context.Background(), &csi.DeleteSnapshotRequest{SnapshotId: snapshotID})
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).To(Equal(&csi.DeleteSnapshotResponse{}))
+		})
+
+		It("validates required snapshot fields", func() {
+			response, err := cs.CreateSnapshot(context.Background(), &csi.CreateSnapshotRequest{})
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+			Expect(response).To(BeNil())
+
+			response, err = cs.CreateSnapshot(context.Background(), &csi.CreateSnapshotRequest{Name: "snapshot-name"})
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+			Expect(response).To(BeNil())
+
+			deleteResponse, err := cs.DeleteSnapshot(context.Background(), &csi.DeleteSnapshotRequest{})
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+			Expect(deleteResponse).To(BeNil())
 		})
 	})
 

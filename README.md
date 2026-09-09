@@ -16,6 +16,7 @@ This is a csi-driver for Anexia!
   - IP Space - View All
 5. `rpc-statd` service running on hosts (included in `nfs-common` package)
     * alternatively add the 'nolock' option to `mountOptions` on `StorageClass` or `PersistentVolume.spec` if global file locking is not needed
+6. For snapshots, the Kubernetes `VolumeSnapshot` CRDs and snapshot controller must be installed in the cluster
 
 ## Installation
 
@@ -90,3 +91,29 @@ EOF
 ```
 
 Consult the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/support-fsgroup.html) for further information.
+
+### Volume snapshots and restores
+
+Snapshots use a directory-copy model. The driver creates a dedicated ADV volume with the same capacity, mounts both volumes in the controller pod, and recursively copies the source directory into the snapshot volume. The included `anexia-directory-copy` `VolumeSnapshotClass` stores snapshots on the source volume's ADS class and storage server interface by default. Either value can be overridden with `csi.anx.io/ads-class` and `csi.anx.io/storage-server-identifier` parameters on another `VolumeSnapshotClass`.
+
+Snapshots are recursive file copies, not atomic point-in-time snapshots. If writes continue during the copy, files and their contents can reflect different points in time; crash consistency is not guaranteed. For a consistent restore, flush application data and quiesce all writers before requesting the snapshot, then keep them quiesced for the entire copy until the snapshot reports `readyToUse: true`. A snapshot consumes another ADV volume with the source volume's provisioned capacity.
+
+To restore a snapshot, reference it as the `dataSource` of a new PVC. The requested PVC size must be at least the snapshot's reported restore size.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: restored-volume
+spec:
+  storageClassName: anexia-ent2
+  dataSource:
+    name: example-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
