@@ -21,6 +21,7 @@ import (
 type fakeSnapshotDataManager struct {
 	create  func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
 	restore func(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
+	clone   func(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
 }
 
 func (m *fakeSnapshotDataManager) Create(
@@ -41,6 +42,14 @@ func (m *fakeSnapshotDataManager) Restore(
 	newlyCreated bool,
 ) error {
 	return m.restore(ctx, snapshotID, snapshot, destination, newlyCreated)
+}
+
+func (m *fakeSnapshotDataManager) Clone(
+	ctx context.Context,
+	source *dynamicvolumev1.Volume,
+	destination *dynamicvolumev1.Volume,
+	newlyCreated bool,) error {
+	return m.clone(ctx, source, destination, newlyCreated)
 }
 
 var _ = Describe("Controller Service", func() {
