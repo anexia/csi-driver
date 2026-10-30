@@ -72,6 +72,7 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 	var (
 		snapshotID     string
 		snapshotVolume *dynamicvolumev1.Volume
+		sourceVolume   *dynamicvolumev1.Volume
 	)
 	if source := req.GetVolumeContentSource().GetSnapshot(); source != nil {
 		snapshotID = source.GetSnapshotId()
@@ -91,6 +92,21 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		lockKey := "restore:" + req.GetName()
 		if !cs.dataCopyLocks.TryAcquire(lockKey) {
 			return nil, status.Error(codes.Aborted, "another restore for this volume is already in progress")
+		}
+		defer cs.dataCopyLocks.Release(lockKey)
+	}
+
+	if source := req.GetVolumeContentSource().GetVolume(); source != nil {
+		sourceVolume = &dynamicvolumev1.Volume{Identifier: source.GetVolumeId()}
+		if getErr := cs.engine.Get(ctx, sourceVolume); getErr != nil {
+			return nil, engineErrorToGRPC(getErr)
+		}
+		if sourceVolume.Size > size {
+			return nil, status.Errorf(codes.OutOfRange, "requested volume size %d is smaller than source volume size %d", size, sourceVolume.Size)
+		}
+		lockKey := "clone:" + req.GetName()
+		if !cs.dataCopyLocks.TryAcquire(lockKey) {
+			return nil, status.Error(codes.Aborted, "another clone of this volume is already in progress")
 		}
 		defer cs.dataCopyLocks.Release(lockKey)
 	}
@@ -138,6 +154,22 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 			}
 
 			return nil, status.Errorf(codes.Internal, "restore volume from snapshot: %s", restoreErr)
+		}
+	}
+
+	if sourceVolume != nil {
+		cloneErr := cs.snapshotDataManager().Clone(ctx, sourceVolume, volume, newlyCreated)
+		if cloneErr != nil {
+			if newlyCreated {
+				cs.cleanupFailedVolume(ctx, volume.Identifier, "volume clone")
+			}
+			if ctx.Err() != nil {
+				return nil, status.FromContextError(ctx.Err()).Err()
+			}
+			if errors.Is(cloneErr, errIncompatibleContentSource) {
+				return nil, status.Errorf(codes.AlreadyExists, "existing volume is incompatible with requested source volume: %s", cloneErr)
+			}
+			return nil, status.Errorf(codes.Internal, "clone volume: %s", cloneErr)
 		}
 	}
 

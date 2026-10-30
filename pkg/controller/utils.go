@@ -62,14 +62,16 @@ func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 	}
 
 	if source := req.GetVolumeContentSource(); source != nil {
-		if source.GetVolume() != nil {
-			return errors.New("creating a volume from another volume is not supported")
+		if volume := source.GetVolume(); volume != nil {
+			if volume.GetVolumeId() == "" {
+				return errors.New("volume content source ID is not provided")
+			}
+			return nil
 		}
 		if source.GetSnapshot() == nil || source.GetSnapshot().GetSnapshotId() == "" {
-			return errors.New("snapshot content source has no snapshot id")
+			return errors.New("snapshot content source ID is not provided")
 		}
 	}
-
 	return nil
 }
 
