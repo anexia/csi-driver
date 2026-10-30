@@ -48,7 +48,7 @@ func (m *fakeSnapshotDataManager) Clone(
 	ctx context.Context,
 	source *dynamicvolumev1.Volume,
 	destination *dynamicvolumev1.Volume,
-	newlyCreated bool,) error {
+	newlyCreated bool) error {
 	return m.clone(ctx, source, destination, newlyCreated)
 }
 
@@ -216,6 +216,84 @@ var _ = Describe("Controller Service", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.Volume.VolumeId).To(Equal("restored-volume"))
 			Expect(response.Volume.ContentSource).To(Equal(validRequest.VolumeContentSource))
+		})
+
+		It("clones a newly created volume from a source volume", func() {
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{VolumeId: "source-volume"},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "cloned-volume"
+				volume.Path = "/cloned"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+
+			cs.snapshotData = &fakeSnapshotDataManager{
+				clone: func(_ context.Context, source, destination *dynamicvolumev1.Volume, newlyCreated bool) error {
+					Expect(source.Identifier).To(Equal("source-volume"))
+					Expect(destination.Identifier).To(Equal("cloned-volume"))
+					Expect(newlyCreated).To(BeTrue())
+					return nil
+				},
+			}
+
+			response, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.Volume.VolumeId).To(Equal("cloned-volume"))
+			Expect(response.Volume.ContentSource).To(Equal(validRequest.VolumeContentSource))
+		})
+
+		It("deletes the newly created volume when cloning fails", func() {
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{VolumeId: "source-volume"},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Identifier = "cloned-volume"
+				volume.Path = "/cloned"
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+			engine.EXPECT().Destroy(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "cloned-volume"})
+
+			cs.snapshotData = &fakeSnapshotDataManager{
+				clone: func(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error {
+					return errors.New("copy failed")
+				},
+			}
+
+			_, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.Internal))
 		})
 
 		DescribeTable("rejects an undersized restore before allocating or copying", func(capacity *csi.CapacityRange) {
