@@ -72,7 +72,7 @@ jobs:
       # the report below can show the coverage difference against main.
       - name: download main coverage breakdown
         id: download-main-breakdown
-        uses: dawidd6/action-download-artifact@v26
+        uses: dawidd6/action-download-artifact@v27
         with:
           branch: main
           workflow_conclusion: success
