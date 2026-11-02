@@ -27,6 +27,9 @@ jobs:
         with:
          go-version-file: "go.mod"
 
+      - name: install just
+        uses: extractions/setup-just@v3
+
       - name: Set up CI system
         run: |
           sudo apt-get update
