@@ -47,3 +47,6 @@ fmtcheck:
 
 go-lint:
     golangci-lint run
+
+vulncheck:
+    go tool govulncheck ./...

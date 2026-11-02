@@ -28,7 +28,7 @@ jobs:
          go-version-file: "go.mod"
 
       - name: install just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Set up CI system
         run: |
