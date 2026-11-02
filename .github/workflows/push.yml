@@ -22,12 +22,14 @@ jobs:
         with:
          go-version-file: "go.mod"
       - name: install just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
       - name: check if go.mod and go.sum are tidy
         run: just depscheck
 
       - name: check code format
         run: just fmtcheck
+      - name: run vulncheck
+        run: just vulncheck
 
   review-docker:
     runs-on: ubuntu-latest
@@ -56,7 +58,7 @@ jobs:
          go-version-file: "go.mod"
 
       - name: install just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
       - name: run unit tests
         run: just test
 
