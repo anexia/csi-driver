@@ -13,6 +13,7 @@ import (
 	"go.anx.io/go-anxcloud/pkg/apis/common/gs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes/fake"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -294,6 +295,23 @@ var _ = Describe("Controller Service", func() {
 			_, err := cs.CreateVolume(context.Background(), validRequest)
 
 			Expect(status.Code(err)).To(Equal(codes.Internal))
+		})
+		It("rejects cloning a source volume that is in use", func() {
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{VolumeId: "source-volume"},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			cs.kube = fake.NewClientset(testPV("pv-source", "source-volume"), testVolumeAttachment("pv-source"))
+
+			_, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.FailedPrecondition))
 		})
 
 		DescribeTable("rejects an undersized restore before allocating or copying", func(capacity *csi.CapacityRange) {
