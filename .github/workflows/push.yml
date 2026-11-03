@@ -21,11 +21,15 @@ jobs:
         uses: actions/setup-go@v7
         with:
          go-version-file: "go.mod"
+      - name: install just
+        uses: extractions/setup-just@v4
       - name: check if go.mod and go.sum are tidy
-        run: make depscheck
+        run: just depscheck
 
       - name: check code format
-        run: make fmtcheck
+        run: just fmtcheck
+      - name: run vulncheck
+        run: just vulncheck
 
   review-docker:
     runs-on: ubuntu-latest
@@ -53,8 +57,10 @@ jobs:
         with:
          go-version-file: "go.mod"
 
+      - name: install just
+        uses: extractions/setup-just@v4
       - name: run unit tests
-        run: make test
+        run: just test
 
       - name: upload coverage
         uses: actions/upload-artifact@v7
@@ -66,7 +72,7 @@ jobs:
       # the report below can show the coverage difference against main.
       - name: download main coverage breakdown
         id: download-main-breakdown
-        uses: dawidd6/action-download-artifact@v24
+        uses: dawidd6/action-download-artifact@v26
         with:
           branch: main
           workflow_conclusion: success

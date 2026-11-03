@@ -12,7 +12,7 @@ RUN go build -ldflags "-s -w -X github.com/anexia/csi-driver/pkg/version.Version
 FROM builder AS runtime-test-builder
 RUN CGO_ENABLED=0 go test -c -tags=runtimeimage -o /controller.test ./pkg/controller
 
-FROM alpine:3.24.1 AS runtime
+FROM alpine:3.24 AS runtime
 
 # Keep nfs-utils pinned to its upstream version, but allow Alpine's package revision to differ by architecture.
 # Pinning ca-certificates only gives us the downside of randomly failing Docker builds.
