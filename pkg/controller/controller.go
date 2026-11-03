@@ -125,6 +125,13 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		if sourceVolume.Size > size {
 			return nil, status.Errorf(codes.OutOfRange, "requested volume size %d is smaller than source volume size %d", size, sourceVolume.Size)
 		}
+		inUse, inUseErr := cs.sourceInUse(ctx, source.GetVolumeId())
+		if inUseErr != nil {
+			return nil, status.Errorf(codes.Internal, "check if source volume %s is in use", inUseErr)
+		}
+		if inUse {
+			return nil, status.Error(codes.FailedPrecondition, "source volume is already in use, stop the workload using it before cloning")
+		}
 		lockKey := "clone:" + req.GetName()
 		if !cs.dataCopyLocks.TryAcquire(lockKey) {
 			return nil, status.Error(codes.Aborted, "another clone of this volume is already in progress")
