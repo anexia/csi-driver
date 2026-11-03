@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
@@ -41,6 +43,7 @@ type controller struct {
 	volumeDeleteMaxAttempts     int
 	snapshotData                snapshotDataManager
 	dataCopyLocks               operationLocks
+	kube                        kubernetes.Interface
 }
 
 // New creates a fresh instance of the Controller component, ready to register to a GRPC server.
@@ -50,10 +53,28 @@ func New() (csi.ControllerServer, error) {
 		return nil, fmt.Errorf("error creating API client with token from env: %w", err)
 	}
 
+	kube, err := newKubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating Kubernetes client: %w", err)
+	}
+
 	return &controller{
 		engine:       engine,
 		snapshotData: newDirectorySnapshotDataManager(engine),
+		kube:         kube,
 	}, nil
+}
+
+func newKubeClient() (kubernetes.Interface, error) {
+	cfg, err := rest.InClusterConfig()
+	if errors.Is(err, rest.ErrNotInCluster) {
+		klog.InfoS("Not running in a cluster, source-in-use check for clones is disabled")
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(cfg)
 }
 
 func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
