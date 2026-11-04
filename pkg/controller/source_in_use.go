@@ -8,7 +8,7 @@ import (
 )
 
 // sourceInUse reports whether the volume with the given ID is currently attached to a node,
-// i.e. mounted by a pod. Without a Kubernetes client (outside a cluster) it always returns false.
+// i.e. mounted by a pod. Without a Kubernetes client (check disabled) it always returns false.
 func (cs *controller) sourceInUse(ctx context.Context, volumeID string) (bool, error) {
 	if cs.kube == nil {
 		return false, nil

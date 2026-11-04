@@ -36,6 +36,7 @@ spec:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--components=controller"
+            - "--source-in-use-check"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock

@@ -47,34 +47,29 @@ type controller struct {
 }
 
 // New creates a fresh instance of the Controller component, ready to register to a GRPC server.
-func New() (csi.ControllerServer, error) {
+// With sourceInUseCheck enabled. cloning of volumes attached to a node is rejected; this needs
+// in-cluster access to Kubernetes API.
+func New(sourceInUseCheck bool) (csi.ControllerServer, error) {
 	engine, err := api.NewAPI(api.WithClientOptions(client.TokenFromEnv(false)))
 	if err != nil {
 		return nil, fmt.Errorf("error creating API client with token from env: %w", err)
 	}
 
-	kube, err := newKubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("error creating Kubernetes client: %w", err)
-	}
-
-	return &controller{
+	cs := &controller{
 		engine:       engine,
 		snapshotData: newDirectorySnapshotDataManager(engine),
-		kube:         kube,
-	}, nil
-}
+	}
 
-func newKubeClient() (kubernetes.Interface, error) {
-	cfg, err := rest.InClusterConfig()
-	if errors.Is(err, rest.ErrNotInCluster) {
-		klog.InfoS("Not running in a cluster, source-in-use check for clones is disabled")
-		return nil, nil
+	if sourceInUseCheck {
+		cfg, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("error loading in-cluster config for source-in-use check: %w", err)
+		}
+		if cs.kube, err = kubernetes.NewForConfig(cfg); err != nil {
+			return nil, fmt.Errorf("error creating kubernetes client: %w", err)
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return kubernetes.NewForConfig(cfg)
+	return cs, nil
 }
 
 func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
