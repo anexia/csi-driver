@@ -67,6 +67,7 @@ func decodeSnapshotHandle(value string) (snapshotHandle, error) {
 type snapshotDataManager interface {
 	Create(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) (time.Time, error)
 	Restore(context.Context, string, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
+	Clone(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error
 }
 
 type directorySnapshotDataManager struct {
@@ -249,6 +250,59 @@ func (m *directorySnapshotDataManager) Restore(
 	metadata.Complete = true
 	if err := writeJSON(restoreMetadataPath, metadata); err != nil {
 		return fmt.Errorf("write restore metadata: %w", err)
+	}
+
+	return nil
+}
+
+// Clone copies the content of the source volume into the destination volume.
+func (m *directorySnapshotDataManager) Clone(
+	ctx context.Context,
+	source *dynamicvolumev1.Volume,
+	destination *dynamicvolumev1.Volume,
+	newlyCreated bool,
+) (returnErr error) {
+	sourceMount, err := m.mountVolume(ctx, source, true)
+	if err != nil {
+		return fmt.Errorf("mount source volume: %w", err)
+	}
+	defer func() {
+		returnErr = errors.Join(returnErr, sourceMount.cleanup())
+	}()
+
+	destinationMount, err := m.mountVolume(ctx, destination, false)
+	if err != nil {
+		return fmt.Errorf("mount destination volume: %w", err)
+	}
+	defer func() {
+		returnErr = errors.Join(returnErr, destinationMount.cleanup())
+	}()
+
+	restoreMetadataPath := filepath.Join(destinationMount.path, restoreMetadataFile)
+	metadata, complete, err := restoreMetadataForOperation(restoreMetadataPath, "clone:"+source.Identifier, newlyCreated)
+	if err != nil {
+		return err
+	}
+	if complete {
+		return nil
+	}
+
+	if err := writeMissingOperationMetadata(restoreMetadataPath, metadata); err != nil {
+		return fmt.Errorf("write incomplete clone metadata: %w", err)
+	}
+	if err := clearDirectory(destinationMount.path, m.workingDir); err != nil {
+		return fmt.Errorf("clear destination volume: %w", err)
+	}
+
+	klog.V(2).InfoS("Cloning volume", "source_volume_id", source.Identifier, "destination_volume_id", destination.Identifier)
+	if err := copyDirectory(ctx, sourceMount.path, destinationMount.path); err != nil {
+		return fmt.Errorf("copy source volume into destination volume: %w", err)
+	}
+	klog.V(2).InfoS("Finished cloning volume", "source_volume_id", source.Identifier, "destination_volume_id", destination.Identifier)
+
+	metadata.Complete = true
+	if err := writeJSON(restoreMetadataPath, metadata); err != nil {
+		return fmt.Errorf("write clone metadata: %w", err)
 	}
 
 	return nil

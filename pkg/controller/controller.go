@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
@@ -41,19 +43,33 @@ type controller struct {
 	volumeDeleteMaxAttempts     int
 	snapshotData                snapshotDataManager
 	dataCopyLocks               operationLocks
+	kube                        kubernetes.Interface
 }
 
 // New creates a fresh instance of the Controller component, ready to register to a GRPC server.
-func New() (csi.ControllerServer, error) {
+// With sourceInUseCheck enabled. cloning of volumes attached to a node is rejected; this needs
+// in-cluster access to Kubernetes API.
+func New(sourceInUseCheck bool) (csi.ControllerServer, error) {
 	engine, err := api.NewAPI(api.WithClientOptions(client.TokenFromEnv(false)))
 	if err != nil {
 		return nil, fmt.Errorf("error creating API client with token from env: %w", err)
 	}
 
-	return &controller{
+	cs := &controller{
 		engine:       engine,
 		snapshotData: newDirectorySnapshotDataManager(engine),
-	}, nil
+	}
+
+	if sourceInUseCheck {
+		cfg, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("error loading in-cluster config for source-in-use check: %w", err)
+		}
+		if cs.kube, err = kubernetes.NewForConfig(cfg); err != nil {
+			return nil, fmt.Errorf("error creating kubernetes client: %w", err)
+		}
+	}
+	return cs, nil
 }
 
 func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -72,6 +88,7 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 	var (
 		snapshotID     string
 		snapshotVolume *dynamicvolumev1.Volume
+		sourceVolume   *dynamicvolumev1.Volume
 	)
 	if source := req.GetVolumeContentSource().GetSnapshot(); source != nil {
 		snapshotID = source.GetSnapshotId()
@@ -91,6 +108,28 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		lockKey := "restore:" + req.GetName()
 		if !cs.dataCopyLocks.TryAcquire(lockKey) {
 			return nil, status.Error(codes.Aborted, "another restore for this volume is already in progress")
+		}
+		defer cs.dataCopyLocks.Release(lockKey)
+	}
+
+	if source := req.GetVolumeContentSource().GetVolume(); source != nil {
+		sourceVolume = &dynamicvolumev1.Volume{Identifier: source.GetVolumeId()}
+		if getErr := cs.engine.Get(ctx, sourceVolume); getErr != nil {
+			return nil, engineErrorToGRPC(getErr)
+		}
+		if sourceVolume.Size > size {
+			return nil, status.Errorf(codes.OutOfRange, "requested volume size %d is smaller than source volume size %d", size, sourceVolume.Size)
+		}
+		inUse, inUseErr := cs.sourceInUse(ctx, source.GetVolumeId())
+		if inUseErr != nil {
+			return nil, status.Errorf(codes.Internal, "check if source volume %s is in use", inUseErr)
+		}
+		if inUse {
+			return nil, status.Error(codes.FailedPrecondition, "source volume is already in use, stop the workload using it before cloning")
+		}
+		lockKey := "clone:" + req.GetName()
+		if !cs.dataCopyLocks.TryAcquire(lockKey) {
+			return nil, status.Error(codes.Aborted, "another clone of this volume is already in progress")
 		}
 		defer cs.dataCopyLocks.Release(lockKey)
 	}
@@ -138,6 +177,22 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 			}
 
 			return nil, status.Errorf(codes.Internal, "restore volume from snapshot: %s", restoreErr)
+		}
+	}
+
+	if sourceVolume != nil {
+		cloneErr := cs.snapshotDataManager().Clone(ctx, sourceVolume, volume, newlyCreated)
+		if cloneErr != nil {
+			if newlyCreated {
+				cs.cleanupFailedVolume(ctx, volume.Identifier, "volume clone")
+			}
+			if ctx.Err() != nil {
+				return nil, status.FromContextError(ctx.Err()).Err()
+			}
+			if errors.Is(cloneErr, errIncompatibleContentSource) {
+				return nil, status.Errorf(codes.AlreadyExists, "existing volume is incompatible with requested source volume: %s", cloneErr)
+			}
+			return nil, status.Errorf(codes.Internal, "clone volume: %s", cloneErr)
 		}
 	}
 
@@ -255,6 +310,13 @@ func (*controller) ControllerGetCapabilities(_ context.Context, _ *csi.Controlle
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
 						Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+					},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
 					},
 				},
 			},
