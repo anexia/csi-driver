@@ -17,6 +17,8 @@ spec:
       app.kubernetes.io/part-of: csi-driver-anexia
       app.kubernetes.io/name: csi-driver-anexia
       app.kubernetes.io/component: controller
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -25,6 +27,9 @@ spec:
         app.kubernetes.io/name: csi-driver-anexia
         app.kubernetes.io/component: controller
     spec:
+      # The controller mounts source and snapshot NFS volumes while copying data.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: csi-driver-anexia-controller
       containers:
         - name: csi-driver-anexia
@@ -33,6 +38,7 @@ spec:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--components=controller"
+            - "--source-in-use-check"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -41,8 +47,11 @@ spec:
                 secretKeyRef:
                   name: csi-driver-anexia
                   key: token
+          securityContext:
+            privileged: true
           ports:
-            - containerPort: 9898
+            # Keep this distinct from the host-networked node plugin's probe.
+            - containerPort: 9899
               name: healthz
               protocol: TCP
           livenessProbe:
@@ -63,7 +72,7 @@ spec:
           image: registry.k8s.io/sig-storage/livenessprobe:v2.19.0
           args:
             - --csi-address=/csi/csi.sock
-            - --health-port=9898
+            - --health-port=9899
 
         - name: csi-provisioner
           image: registry.k8s.io/sig-storage/csi-provisioner:v6.3.0
@@ -72,7 +81,7 @@ spec:
             - --csi-address=/csi/csi.sock
             - --extra-create-metadata
             - --leader-election
-            - --timeout=60s
+            - --timeout=1200s
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
