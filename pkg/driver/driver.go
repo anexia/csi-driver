@@ -14,7 +14,7 @@ import (
 
 // Run initializes the csi-driver instance with the given configuration and
 // executes the main loop of the server.
-func Run(ctx context.Context, components types.Components, nodeID, endpoint string) error {
+func Run(ctx context.Context, components types.Components, nodeID, endpoint string, sourceInUseCheck bool) error {
 	opts := server.Options{
 		Endpoint: endpoint,
 		NodeID:   nodeID,
@@ -26,7 +26,7 @@ func Run(ctx context.Context, components types.Components, nodeID, endpoint stri
 	}
 
 	if components.Has(types.Controller) {
-		if opts.Controller, err = controller.New(); err != nil {
+		if opts.Controller, err = controller.New(sourceInUseCheck); err != nil {
 			return fmt.Errorf("error initializing controller server: %w", err)
 		}
 	}
