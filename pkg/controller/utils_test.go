@@ -87,6 +87,35 @@ var _ = Describe("Controller Service Utils", func() {
 			err := checkCreateVolumeRequest(req)
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("rejects a snapshot content source", func() {
+			req.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Snapshot{
+					Snapshot: &csi.VolumeContentSource_SnapshotSource{SnapshotId: "snapshot-id"},
+				},
+			}
+
+			Expect(checkCreateVolumeRequest(req)).To(MatchError(ContainSubstring("not supported")))
+		})
+
+		It("accepts a volume content source", func() {
+			req.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{VolumeId: "volume-id"},
+				},
+			}
+
+			Expect(checkCreateVolumeRequest(req)).To(Succeed())
+		})
+
+		It("rejects a volume content source without volume id", func() {
+			req.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{},
+				},
+			}
+			Expect(checkCreateVolumeRequest(req)).To(MatchError(ContainSubstring("volume content source ID is not provided")))
+		})
 	})
 
 	Context("checkValidateVolumeCapabilitiesRequest", func() {
