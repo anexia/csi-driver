@@ -61,6 +61,15 @@ func checkCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 		return fmt.Errorf("unsuported volume capabilities: %w", err)
 	}
 
+	if source := req.GetVolumeContentSource(); source != nil {
+		if source.GetVolume() != nil {
+			return errors.New("creating a volume from another volume is not supported")
+		}
+		if source.GetSnapshot() == nil || source.GetSnapshot().GetSnapshotId() == "" {
+			return errors.New("snapshot content source has no snapshot id")
+		}
+	}
+
 	return nil
 }
 
@@ -121,6 +130,16 @@ func sizeFromCapacityRange(capacityRange *csi.CapacityRange) (int64, error) {
 }
 
 func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API, req *csi.CreateVolumeRequest, size int64) (*dynamicvolumev1.Volume, error) {
+	volume, _, err := createAnexiaDynamicVolumeFromRequestWithStatus(ctx, engine, req, size)
+	return volume, err
+}
+
+func createAnexiaDynamicVolumeFromRequestWithStatus(
+	ctx context.Context,
+	engine types.API,
+	req *csi.CreateVolumeRequest,
+	size int64,
+) (*dynamicvolumev1.Volume, bool, error) {
 	volume := dynamicvolumev1.Volume{
 		Name:                    req.GetName(),
 		Size:                    size,
@@ -133,10 +152,11 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 		httpError := api.HTTPError{}
 		if errors.As(err, &httpError) && httpError.StatusCode() == http.StatusUnprocessableEntity {
 			klog.V(4).InfoS("Engine rejected volume creation, checking for existing volume with same name", "name", req.GetName())
-			return handleIdempotency(ctx, engine, req, size, err)
+			existing, idempotencyErr := handleIdempotency(ctx, engine, req, size, err)
+			return existing, false, idempotencyErr
 		}
 
-		return nil, fmt.Errorf("create volume: %w", err)
+		return nil, false, fmt.Errorf("create volume: %w", err)
 	}
 
 	klog.V(4).InfoS("ADV volume created, awaiting completion", "engine_identifier", volume.Identifier)
@@ -146,17 +166,17 @@ func createAnexiaDynamicVolumeFromRequest(ctx context.Context, engine types.API,
 			klog.V(2).InfoS("ADV volume went into error state, deleting it", "engine_identifier", volume.Identifier)
 			if destroyErr := engine.Destroy(ctx, &volume); destroyErr != nil {
 				klog.V(2).ErrorS(destroyErr, "Faulty ADV volume could not be deleted", "engine_identifier", volume.Identifier)
-				return nil, fmt.Errorf("ADV volume deletion of faulty volume failed: %w", destroyErr)
+				return nil, false, fmt.Errorf("ADV volume deletion of faulty volume failed: %w", destroyErr)
 			}
 
 			// We're returning an error here, so that on the next reconciliation loop, the volume is reprovisioned.
-			return nil, status.Errorf(codes.FailedPrecondition, "ADV volume went into error state, reprovisioning it")
+			return nil, false, status.Errorf(codes.FailedPrecondition, "ADV volume went into error state, reprovisioning it")
 		default:
-			return nil, fmt.Errorf("failed awaiting completion: %w", err)
+			return nil, false, fmt.Errorf("failed awaiting completion: %w", err)
 		}
 	}
 
-	return &volume, nil
+	return &volume, true, nil
 }
 
 // handleIdempotency is called when the engine rejected the create request. It looks up a volume with the
