@@ -98,7 +98,7 @@ func (cs *controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeReq
 		}
 		inUse, inUseErr := cs.sourceInUse(ctx, source.GetVolumeId())
 		if inUseErr != nil {
-			return nil, status.Errorf(codes.Internal, "check if source volume %s is in use", inUseErr)
+			return nil, status.Errorf(codes.Internal, "check if source volume %s is in use: %s", source.GetVolumeId(), inUseErr)
 		}
 		if inUse {
 			return nil, status.Error(codes.FailedPrecondition, "source volume is already in use, stop the workload using it before cloning")

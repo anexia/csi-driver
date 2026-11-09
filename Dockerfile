@@ -16,7 +16,7 @@ FROM alpine:3.24
 # Upgrade packages because security fixes can reach Alpine's stable repositories before refreshed image tags.
 # hadolint ignore=DL3017,DL3018
 RUN apk upgrade --no-cache && \
-    apk add --no-cache ca-certificates 'nfs-utils=~2.6.4'
+    apk add --no-cache ca-certificates coreutils 'nfs-utils=~2.6.4'
 
 COPY --from=builder /src/csi-driver /csi-driver
 ENTRYPOINT ["/csi-driver"]

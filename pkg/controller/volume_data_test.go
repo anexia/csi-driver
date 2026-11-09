@@ -65,4 +65,30 @@ var _ = Describe("Directory volume data", func() {
 		Expect(err).To(MatchError(ContainSubstring("incompatible content source")))
 		Expect(errors.Is(err, errIncompatibleContentSource)).To(BeTrue())
 	})
+
+	DescribeTable("cloneMetadataForOperation on a retry",
+		func(prepare func(dir string), expectComplete bool, expectErr error) {
+			dir := GinkgoT().TempDir()
+			prepare(dir)
+
+			_, complete, err := cloneMetadataForOperation(filepath.Join(dir, cloneMetadataFile), "clone:source-volume", false)
+			if expectErr != nil {
+				Expect(errors.Is(err, expectErr)).To(BeTrue())
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+			Expect(complete).To(Equal(expectComplete))
+		},
+		Entry("same source, complete: no copy", func(dir string) {
+			Expect(writeJSON(filepath.Join(dir, cloneMetadataFile), cloneMetadata{Version: 1, SourceID: "clone:source-volume", Complete: true})).To(Succeed())
+		}, true, nil),
+		Entry("same source, incomplete: copy again", func(dir string) {
+			Expect(writeJSON(filepath.Join(dir, cloneMetadataFile), cloneMetadata{Version: 1, SourceID: "clone:source-volume", Complete: false})).To(Succeed())
+		}, false, nil),
+		Entry("no metadata, empty volume", func(string) {}, false, nil),
+		Entry("no metadata, non-empty volume: refuse", func(dir string) {
+			Expect(os.WriteFile(filepath.Join(dir, "data.txt"), []byte("user data"), 0o600)).To(Succeed())
+		}, false, errIncompatibleContentSource),
+	)
+
 })

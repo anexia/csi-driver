@@ -3,6 +3,9 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"reflect"
 	"time"
 
 	dynamicvolumev1 "github.com/anexia/csi-driver/pkg/internal/apis/dynamicvolume/v1"
@@ -10,6 +13,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
 	"go.anx.io/go-anxcloud/pkg/api"
+	"go.anx.io/go-anxcloud/pkg/api/types"
 	"go.anx.io/go-anxcloud/pkg/apis/common/gs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -242,6 +246,84 @@ var _ = Describe("Controller Service", func() {
 			_, err := cs.CreateVolume(context.Background(), validRequest)
 
 			Expect(status.Code(err)).To(Equal(codes.FailedPrecondition))
+		})
+
+		// arrangeCloneRetry mocks a clone request where the target volume already
+		// exists from a previous attempt (Create → 422, idempotency finds it).
+		arrangeCloneRetry := func() {
+			validRequest.VolumeContentSource = &csi.VolumeContentSource{
+				Type: &csi.VolumeContentSource_Volume{
+					Volume: &csi.VolumeContentSource_VolumeSource{VolumeId: "source-volume"},
+				},
+			}
+
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.Volume{Identifier: "source-volume"}).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = 12000
+				return nil
+			})
+			engine.EXPECT().Get(gomock.Any(), &dynamicvolumev1.StorageServerInterface{Identifier: testStorageServerIdentifier}).DoAndReturn(func(_ any, storageServer *dynamicvolumev1.StorageServerInterface, _ ...any) error {
+				storageServer.IPAddress.Name = "mock-storage-server.anx.io"
+				return nil
+			})
+
+			var requestedSize int64
+			engine.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				requestedSize = volume.Size
+				return api.NewHTTPError(http.StatusUnprocessableEntity, "POST", nil, nil)
+			})
+			engine.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, _ *dynamicvolumev1.Volume, opts ...types.ListOption) error {
+				options := types.ListOptions{}
+				for _, opt := range opts {
+					Expect(opt.ApplyToList(&options)).To(Succeed())
+				}
+				c := make(chan types.ObjectRetriever, 1)
+				*options.ObjectChannel = c
+				c <- func(o types.Object) error {
+					reflect.ValueOf(o).Elem().Set(reflect.ValueOf(dynamicvolumev1.Volume{Identifier: "cloned-volume", Name: validRequest.GetName()}))
+					return nil
+				}
+				close(c)
+				return nil
+			})
+			// retrieve full object
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.Size = requestedSize
+				volume.Path = "/cloned"
+				return nil
+			})
+			// AwaitCompletion
+			engine.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(_ any, volume *dynamicvolumev1.Volume, _ ...any) error {
+				volume.State.Type = gs.StateTypeOK
+				return nil
+			})
+		}
+
+		It("keeps the existing volume when a retried clone fails", func() {
+			arrangeCloneRetry()
+			cs.volumeData = &fakeVolumeDataManager{
+				clone: func(_ context.Context, _, _ *dynamicvolumev1.Volume, newlyCreated bool) error {
+					Expect(newlyCreated).To(BeFalse())
+					return errors.New("copy failed")
+				},
+			}
+
+			_, err := cs.CreateVolume(context.Background(), validRequest)
+
+			// no Destroy expected: gomock fails the test if the existing volume is deleted
+			Expect(status.Code(err)).To(Equal(codes.Internal))
+		})
+
+		It("returns AlreadyExists when the existing volume belongs to another source", func() {
+			arrangeCloneRetry()
+			cs.volumeData = &fakeVolumeDataManager{
+				clone: func(context.Context, *dynamicvolumev1.Volume, *dynamicvolumev1.Volume, bool) error {
+					return fmt.Errorf("%w: volume name is already used for a different source", errIncompatibleContentSource)
+				},
+			}
+
+			_, err := cs.CreateVolume(context.Background(), validRequest)
+
+			Expect(status.Code(err)).To(Equal(codes.AlreadyExists))
 		})
 	})
 
