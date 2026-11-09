@@ -44,16 +44,6 @@ type cloneMetadata struct {
 	Complete bool   `json:"complete"`
 }
 
-func (m *cloneMetadata) UnmarshalJSON(data []byte) error {
-	type plain cloneMetadata
-	decoded := plain{Complete: true}
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	*m = cloneMetadata(decoded)
-	return nil
-}
-
 // newDirectoryManager creates a volumeDataManager that works in a temporary directory.
 func newDirectoryDataManager(engine types.API) volumeDataManager {
 	return &directoryDataManager{
