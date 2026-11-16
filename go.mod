@@ -11,7 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	go.anx.io/go-anxcloud v0.14.5
-	golang.org/x/sys v0.49.0
+	golang.org/x/sys v0.50.0
 	google.golang.org/grpc v1.85.0
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
