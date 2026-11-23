@@ -5,7 +5,7 @@ go 1.26.0
 toolchain go1.27.4
 
 require (
-	github.com/container-storage-interface/spec v1.13.0
+	github.com/container-storage-interface/spec v1.14.0
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/onsi/ginkgo/v2 v2.33.1
